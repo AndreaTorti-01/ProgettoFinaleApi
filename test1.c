@@ -57,7 +57,8 @@ int main(){
 
     FILE* fileptr = fopen("input.txt", "r");
     k = (int)(fgets(buffer, MAXWORDLEN, fileptr)[0] - '0');
-    
+    printf("%d", k);
+
     while ((fgets(buffer, MAXWORDLEN, fileptr)) != NULL){
         buffer[strcspn(buffer, "\r\n")] = 0;
 
