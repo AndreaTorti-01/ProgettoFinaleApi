@@ -55,18 +55,56 @@ void visualizza(elem_ptr head){
     printf("NULL\n");
 }
 
-int readline(){
+bool readline(){
     if (fgets(buffer, MAXWORDLEN, fileptr)){
         buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
-        return 1;
+        return true;
     }
-    else return 0;
+    else return false;
+}
+
+bool validateSample (char* sample, char* word, char* guesses) {
+    int i, j;
+    bool isValid, found;
+    isValid = true;
+    for (i=0; i<k && isValid; i++){ // scorre le lettere del sample e della word
+
+        if (guesses[i] == '+'){  // se la lettera era indovinata...
+            if (sample[i] == word[i]){  // ...ed è uguale a quella che stiamo leggendo
+                sample[i] = '?';  // la usiamo e proseguiamo
+            }
+            else isValid = false;   // altrimenti invalidiamo subito
+        }
+
+        else if (guesses[i] == '|'){  // se invece era al posto sbagliato...
+            if (sample[i] == word[i]) {
+                isValid = false;  // non deve esserci lì!
+            }
+            else {
+                for (j=0, found=false; j<k && !found; j++){    // scorriamo tutto il sample alla ricerca di una posizione dove c'è sta lettera
+                    if (sample[j] == word[i]){  // trovata!
+                        found = true;
+                        sample[j] = '?';  // la usiamo
+                    }
+                }
+                if (!found) isValid = false;
+            }
+        }
+
+        else if (guesses[i] == '/'){  // se la lettera era sbagliata...
+            for (j=0; j<k && isValid; j++){ // ...la cerco
+                if (sample[j] == word[i]) isValid = false;  // trovata! invalido tutto
+            }
+        }
+    }
+    return isValid;
 }
 
 int main(){
     elem_ptr* list;
-    int hash, i, n, j;
-    bool exit;
+    elem_ptr tempHead;
+    int hash, i, n, j, q, x;    // n numero di turni ancora disp, x numero parole valide
+    bool exit, found;
     fileptr = fopen("opentestcases/test1.txt", "r");
 
     list = (elem_ptr*) malloc(sizeof(elem_ptr) * TABLESIZE);
@@ -75,7 +113,7 @@ int main(){
 
     readline();
     k = (int)strtol(buffer, (char **)NULL, 10);  // imposta k
-    char riferimento[k+1], temp[k+1], output[k+1];
+    char riferimento[k+1], temp[k+1], output[k+1], guessedChars[k+1];
 
     // popola la tabella di parole ammissibili
     exit = false;
@@ -86,10 +124,6 @@ int main(){
             list[hash] = tail_insert(list[hash], buffer);
         } else exit = true;
     }
-
-    // la stampa
-    for (i=0; i<TABLESIZE; i++)
-        visualizza(list[i]);
 
     // copia la prima parola di riferimento
     readline();
@@ -110,6 +144,13 @@ int main(){
             }
 
             else if (strcmp(buffer, "+nuova_partita") == 0){
+                // rivalida tutte le parole
+                for (i=0; i<TABLESIZE; i++){    // scorre linee della tabella
+                    for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next){   // scorre elementi della linea
+                        tempHead->valid = true;
+                    }
+                }
+
                 // copia la prima parola di riferimento
                 readline();
                 strncpy(riferimento, buffer, k);
@@ -121,23 +162,24 @@ int main(){
         }
 
         // esegue se la parola è proprio r e può leggere parole stampa ok e termina la partita
-        if (n>0 && strcmp(buffer, riferimento) == 0){
+        else if (n>0 && strcmp(buffer, riferimento) == 0){
             printf("ok\n");
             n = 0;
         }
         // esegue solo se può ancora leggere parole (e la parola non era r)
         else if (n>0){
-            // esegue solo se la parola è ammissibile
-            // la confronta con r: + ok, | semi, / no.
-            // rivalida le parole ammissibili e le conta (todo)
+            // esegue solo se la parola è ammissibile e la confronta con r: + ok, | semi, / no.
             hash = MultHash(buffer);
             if(elem_in_list(list[hash], buffer)){
                 strncpy(temp, riferimento, k);
                 for (i=0; i<k; i++){
                     output[i] = '/';
-                    if (temp[i] == buffer[i]) output[i] = '+';
+                    if (temp[i] == buffer[i]){
+                        output[i] = '+';
+                        temp[i] = '?';
+                    }
                     else{
-                        for (j=i; j<k; j++){
+                        for (j=0; j<k; j++){
                             if (buffer[i] == temp[j]){
                                 temp[j] = '?';
                                 output[i] = '|';
@@ -146,6 +188,16 @@ int main(){
                     }
                 }
                 printf("%s\n", output);
+                // inizia la validazione di quelle ancora valide
+                x = 0;
+                for (i=0; i<TABLESIZE; i++){    // scorre linee della tabella
+                    for (tempHead = list[i]; tempHead != NULL && tempHead->valid; tempHead = tempHead->next){   // scorre elementi della linea se validi
+                        strncpy(temp, tempHead->word, k);   // mette l'elemento in temp (sarà modificato!)
+                        if (validateSample(temp, buffer, output)) x++;  // aumenta di 1 il conteggio delle valide se temp è valida
+                    }
+                }
+                printf("%d\n", x);    // stampa il numero di valide
+
                 // una parola ammissibile letta e confrontata
                 n--;
             }
