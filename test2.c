@@ -30,7 +30,7 @@ elem_ptr head_insert(elem_ptr head, char* wordInput){
     if (temp != NULL){
         temp->next = head;
         temp->word = (char*) malloc(sizeof(char) * (k + 1));
-        strncpy(temp->word, wordInput, k);
+        strncpy(temp->word, wordInput, k+1);
         temp->valid = true;
         head = temp;
     } else printf("\nErrore di allocazione.");
@@ -68,14 +68,12 @@ bool validateSample (char* sample, char* word, char* guesses) {
     bool isValid, found;
     isValid = true;
     for (i=0; i<k && isValid; i++){ // scorre le lettere del sample e della word
-
         if (guesses[i] == '+'){  // se la lettera era indovinata...
             if (sample[i] == word[i]){  // ...ed è uguale a quella che stiamo leggendo
                 sample[i] = '?';  // la usiamo e proseguiamo
             }
             else isValid = false;   // altrimenti invalidiamo subito
         }
-
         else if (guesses[i] == '|'){  // se invece era al posto sbagliato...
             if (sample[i] == word[i]) {
                 isValid = false;  // non deve esserci lì!
@@ -90,7 +88,6 @@ bool validateSample (char* sample, char* word, char* guesses) {
                 if (!found) isValid = false;
             }
         }
-
         else if (guesses[i] == '/'){  // se la lettera era sbagliata...
             for (j=0; j<k && isValid; j++){ // ...la cerco
                 if (sample[j] == word[i]) isValid = false;  // trovata! invalido tutto
@@ -105,7 +102,7 @@ int main(){
     elem_ptr tempHead;
     int hash, i, n, j, q, x;    // n numero di turni ancora disp, x numero parole valide
     bool exit, found;
-    fileptr = fopen("opentestcases/test1.txt", "r");
+    fileptr = fopen("opentestcases/test2.txt", "r");
 
     list = (elem_ptr*) malloc(sizeof(elem_ptr) * TABLESIZE);
     for (i=0; i<TABLESIZE; i++)
@@ -127,7 +124,7 @@ int main(){
 
     // copia la prima parola di riferimento
     readline();
-    strncpy(riferimento, buffer, k);
+    strncpy(riferimento, buffer, k+1);
 
     // legge il numero massimo di parole da confrontare
     readline();
@@ -153,7 +150,7 @@ int main(){
 
                 // copia la prima parola di riferimento
                 readline();
-                strncpy(riferimento, buffer, k);
+                strncpy(riferimento, buffer, k+1);
 
                 // legge il numero massimo di parole da confrontare
                 readline();
@@ -171,7 +168,7 @@ int main(){
             // esegue solo se la parola è ammissibile e la confronta con r: + ok, | semi, / no.
             hash = MultHash(buffer);
             if(elem_in_list(list[hash], buffer)){
-                strncpy(temp, riferimento, k);
+                strncpy(temp, riferimento, k+1);
                 for (i=0; i<k; i++){
                     output[i] = '/';
                     if (temp[i] == buffer[i]){
@@ -187,13 +184,17 @@ int main(){
                         }
                     }
                 }
+                output[k] = '\0';
                 printf("%s\n", output);
                 // inizia la validazione di quelle ancora valide
                 x = 0;
                 for (i=0; i<TABLESIZE; i++){    // scorre linee della tabella
                     for (tempHead = list[i]; tempHead != NULL && tempHead->valid; tempHead = tempHead->next){   // scorre elementi della linea se validi
-                        strncpy(temp, tempHead->word, k);   // mette l'elemento in temp (sarà modificato!)
-                        if (validateSample(temp, buffer, output)) x++;  // aumenta di 1 il conteggio delle valide se temp è valida
+                        strncpy(temp, tempHead->word, k+1);   // mette l'elemento in temp (sarà modificato!)
+                        if (validateSample(temp, buffer, output)){
+                            x++;
+                        }   // aumenta di 1 il conteggio delle valide se temp è valida
+                        else tempHead->valid = false;
                     }
                 }
                 printf("%d\n", x);    // stampa il numero di valide
