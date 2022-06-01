@@ -30,7 +30,7 @@ elem_ptr head_insert(elem_ptr head, char* wordInput){
     if (temp != NULL){
         temp->next = head;
         temp->word = (char*) malloc(sizeof(char) * (k + 1));
-        strcpy(temp->word, wordInput);
+        strncpy(temp->word, wordInput, k);
         temp->valid = true;
         head = temp;
     } else printf("\nErrore di allocazione.");
@@ -93,7 +93,7 @@ int main(){
 
     // copia la prima parola di riferimento
     readline();
-    strcpy(riferimento, buffer);
+    strncpy(riferimento, buffer, k);
 
     // legge il numero massimo di parole da confrontare
     readline();
@@ -112,7 +112,7 @@ int main(){
             else if (strcmp(buffer, "+nuova_partita") == 0){
                 // copia la prima parola di riferimento
                 readline();
-                strcpy(riferimento, buffer);
+                strncpy(riferimento, buffer, k);
 
                 // legge il numero massimo di parole da confrontare
                 readline();
@@ -132,7 +132,7 @@ int main(){
             // rivalida le parole ammissibili e le conta (todo)
             hash = MultHash(buffer);
             if(elem_in_list(list[hash], buffer)){
-                strcpy(temp, riferimento);
+                strncpy(temp, riferimento, k);
                 for (i=0; i<k; i++){
                     output[i] = '/';
                     if (temp[i] == buffer[i]) output[i] = '+';
