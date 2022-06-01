@@ -7,6 +7,8 @@
 #define TABLESIZE 16
 
 int k;
+char buffer[MAXWORDLEN];
+FILE* fileptr;
 
 typedef struct node{
     char* word;
@@ -53,27 +55,32 @@ void visualizza(elem_ptr head){
     printf("NULL\n");
 }
 
+int readline(){
+    if (fgets(buffer, MAXWORDLEN, fileptr)){
+        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
+        return 1;
+    }
+    else return 0;
+}
+
 int main(){
-    char buffer[MAXWORDLEN];
     elem_ptr* list;
     int hash, i, n, j;
     bool exit;
+    fileptr = fopen("opentestcases/test1.txt", "r");
 
     list = (elem_ptr*) malloc(sizeof(elem_ptr) * TABLESIZE);
     for (i=0; i<TABLESIZE; i++)
         list[i] = NULL;
-    
-    FILE* fileptr = fopen("opentestcases/test1.txt", "r");
-    fgets(buffer, MAXWORDLEN, fileptr);
-    buffer[strcspn(buffer, "\r\n")] = '\0';
+
+    readline();
     k = (int)strtol(buffer, (char **)NULL, 10);  // imposta k
     char riferimento[k+1], temp[k+1], output[k+1];
 
     // popola la tabella di parole ammissibili
     exit = false;
     while (exit == false) {
-        fgets(buffer, MAXWORDLEN, fileptr);
-        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
+        readline();
         if (buffer[0] != '+'){
             hash = MultHash(buffer);
             list[hash] = tail_insert(list[hash], buffer);
@@ -85,17 +92,14 @@ int main(){
         visualizza(list[i]);
 
     // copia la prima parola di riferimento
-    fgets(buffer, MAXWORDLEN, fileptr);
-    buffer[strcspn(buffer, "\r\n")] = '\0';
+    readline();
     strcpy(riferimento, buffer);
 
     // legge il numero massimo di parole da confrontare
-    fgets(buffer, MAXWORDLEN, fileptr);
-    buffer[strcspn(buffer, "\r\n")] = '\0';
+    readline();
     n = (int)strtol(buffer, (char **)NULL, 10);
 
-    while(fgets(buffer, MAXWORDLEN, fileptr)){  // in buffer è contenuta la linea letta
-        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
+    while(readline()){  // in buffer è contenuta la linea letta
         if (buffer[0] == '+'){
             // esegue e stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
@@ -107,13 +111,11 @@ int main(){
 
             else if (strcmp(buffer, "+nuova_partita") == 0){
                 // copia la prima parola di riferimento
-                fgets(buffer, MAXWORDLEN, fileptr);
-                buffer[strcspn(buffer, "\r\n")] = '\0';
+                readline();
                 strcpy(riferimento, buffer);
 
                 // legge il numero massimo di parole da confrontare
-                fgets(buffer, MAXWORDLEN, fileptr);
-                buffer[strcspn(buffer, "\r\n")] = '\0';
+                readline();
                 n = (int)strtol(buffer, (char **)NULL, 10);
             }
         }
@@ -144,6 +146,7 @@ int main(){
                     }
                 }
                 printf("%s\n", output);
+                // una parola ammissibile letta e confrontata
                 n--;
             }
             // esegue se la parola non è ammissibile
