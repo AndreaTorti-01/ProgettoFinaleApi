@@ -97,6 +97,66 @@ bool validateSample (char* sample, char* word, char* guesses) {
     return isValid;
 }
 
+void merge (char words[][k+1], int low, int middle, int high) {
+    int i, j, q;
+    int n1 = middle - low + 1;
+    int n2 = high - middle;
+    char left[n1][k+1], right[n2][k+1];
+    for (i = 0; i < n1; i++)
+        strncpy(left[i], words[low + i], k+1);
+    for (j = 0; j < n2; j++)
+        strncpy(right[j], words[middle + 1 + j], k+1);
+    i = 0;
+    j = 0;
+    q = low;
+    while (i < n1 && j < n2) {
+        if (strcmp(left[i], right[j]) <= 0) {
+            strncpy(words[q], left[i], k+1);
+            i++;
+        } else {
+            strncpy(words[q], right[j], k+1);
+            j++;
+        }
+        q++;
+    }
+    while (i < n1) {
+        strncpy(words[q], left[i], k+1);
+        i++;
+        q++;
+    }
+    while (j < n2) {
+        strncpy(words[q], right[j], k+1);
+        j++;
+        q++;
+    }
+}
+
+void mergeSort (char words[][k+1], int low, int high) {
+    if (low < high) {
+        int middle = (low + high) / 2;
+        mergeSort(words, low, middle);
+        mergeSort(words, middle + 1, high);
+        merge(words, low, middle, high);
+    }
+}
+
+void stampa_filtrate(elem_ptr* list, int x){
+    char words[x][k+1];
+    int i, xTmp;
+    elem_ptr tempHead;
+    xTmp = 0;
+    for (i=0; i<TABLESIZE; i++){    // scorre linee della tabella
+        for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next){   // scorre elementi della linea
+            if (tempHead->valid){
+                strncpy(words[xTmp], tempHead->word, k+1);
+                xTmp++;
+            }
+        }
+    }
+    if (x != 1) mergeSort(words, 0, x);
+    for (xTmp=0; xTmp<x; xTmp++) printf("%s\n", words[xTmp]);
+}
+
 int main(){
     elem_ptr* list;
     elem_ptr tempHead;
@@ -134,6 +194,7 @@ int main(){
         if (buffer[0] == '+'){
             // esegue e stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
+                stampa_filtrate(list, x);
             }
 
             // esegue e popola ulteriormente la lista di parole ammissibili
@@ -189,12 +250,14 @@ int main(){
                 // inizia la validazione di quelle ancora valide
                 x = 0;
                 for (i=0; i<TABLESIZE; i++){    // scorre linee della tabella
-                    for (tempHead = list[i]; tempHead != NULL && tempHead->valid; tempHead = tempHead->next){   // scorre elementi della linea se validi
-                        strncpy(temp, tempHead->word, k+1);   // mette l'elemento in temp (sarà modificato!)
-                        if (validateSample(temp, buffer, output)){
-                            x++;
-                        }   // aumenta di 1 il conteggio delle valide se temp è valida
-                        else tempHead->valid = false;
+                    for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next){   // scorre elementi della linea
+                        if (tempHead->valid){
+                            strncpy(temp, tempHead->word, k+1);   // mette l'elemento in temp (sarà modificato!)
+                            if (validateSample(temp, buffer, output)){
+                                x++;
+                            }   // aumenta di 1 il conteggio delle valide se temp è valida
+                            else tempHead->valid = false;
+                        }
                     }
                 }
                 printf("%d\n", x);    // stampa il numero di valide
