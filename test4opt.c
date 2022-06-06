@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
+#include <stdint.h>
+#include <time.h>
+
+#define bool	_Bool
+#define true	(uint8_t)1
+#define false	(uint8_t)0
 #define MAGIC_NUMBER 31
 #define MAXWORDLEN 128
-#define TABLESIZE 16
 
+uint32_t TABLESIZE = 0; // uint32_t max 4294967296
 int k;
 char buffer[MAXWORDLEN];
 FILE *fileptr;
@@ -26,7 +31,7 @@ typedef struct chars
     int Occ;
 } chars_table;
 
-int map(char c)
+uint8_t map(char c)
 {
     if (c == '-')
         return (c - 45);
@@ -40,10 +45,11 @@ int map(char c)
         return (c - 48);
 }
 
-int MultHash(char *key)
+uint32_t MultHash(char *key)
 {
-    int hash = 0;
-    for (int i = 0; i < k; ++i)
+    uint64_t hash = 0;
+    int i;
+    for (i = 0; i < k; ++i)
         hash = MAGIC_NUMBER * hash + key[i];
     return hash % TABLESIZE;
 }
@@ -73,7 +79,7 @@ elem_ptr tail_insert(elem_ptr head, char *wordInput) // per creare una lista da 
     return head;
 }
 
-elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], int *x)
+elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x)
 {
     int i, counts[64];
     elem_ptr temp;
@@ -126,7 +132,7 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     return head;
 }
 
-elem_ptr tail_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], int *x) // per creare una lista da zero è importante inizializzare la testa a null
+elem_ptr tail_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) // per creare una lista da zero è importante inizializzare la testa a null
 {
     if (head == NULL)
         return head_insert_check(head, wordInput, guessedChars, vincoli, x);
@@ -269,10 +275,10 @@ void mergeSort(char words[][k + 1], int low, int high) // funzione dallo pseudoc
     }
 }
 
-void stampa_filtrate(elem_ptr *list, int x)
+void stampa_filtrate(elem_ptr *list, uint32_t x)
 {
     char words[x][k + 1];
-    int i, xTmp;
+    uint32_t i, xTmp;
     elem_ptr tempHead;
     xTmp = 0;
     for (i = 0; i < TABLESIZE; i++) // scorro tutte le parole
@@ -294,15 +300,29 @@ void stampa_filtrate(elem_ptr *list, int x)
 
 int main()
 {
+    clock_t t;
+    t = clock();
+
     elem_ptr *list;
     elem_ptr tempHead;
     chars_table vincoli[64];
-    int hash, i, j, n, x; // n numero di turni ancora disp, x numero parole valide
+    int n; // n numero di turni ancora disponibili
+    uint32_t hash, i, j, x; // x numero parole valide
     bool exit, found;
     fileptr = fopen("opentestcases/test3.txt", "r");
     wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
 
-    list = (elem_ptr *)malloc(sizeof(elem_ptr) * TABLESIZE); // inizializza la hashtable
+    i = 0;
+    readline();
+    while (buffer[0] != '+')
+    {
+        i++;
+        readline();
+    }
+    TABLESIZE = (i-1);
+    rewind(fileptr);
+
+    list = (elem_ptr *)malloc(sizeof(elem_ptr) * TABLESIZE); // inizializza l'hashtable
     for (i = 0; i < TABLESIZE; i++)
         list[i] = NULL;
 
@@ -481,5 +501,8 @@ int main()
                 fprintf(wfileptr, "not_exists\n");
         }
     }
+    t = clock() - t;
+    printf("No. of clicks %ld clicks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+
     return 0;
 }
