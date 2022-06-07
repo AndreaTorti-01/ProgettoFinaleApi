@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <time.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
 #define false	(uint8_t)0
-#define MAGIC_NUMBER 31
+#define MAGIC_NUMBER 7919
 #define MAXWORDLEN 128
 
 uint32_t TABLESIZE = 0; // uint32_t max 4294967296
@@ -16,71 +15,61 @@ char buffer[MAXWORDLEN];
 FILE *fileptr;
 FILE *wfileptr;
 
-typedef struct node
-{
+typedef struct node {
     char *word;
     bool valid;
     struct node *next;
 } elem;
 typedef elem *elem_ptr;
 
-typedef struct chars
-{
+typedef struct chars {
     bool* bannedInPos;
     int minOcc;
     int Occ;
 } chars_table;
 
-uint8_t map(char c)
-{
-    if (c == '-')
-        return (c - 45);
-    else if (c >= '0' && c <= '9')
-        return (c - 47);
-    else if (c >= 'A' && c <= 'Z')
-        return (c - 53);
-    else if (c >= 'a' && c <= 'z')
-        return (c - 59);
-    else
-        return (c - 48);
+uint8_t map(char c) {
+    if (c == '-') return (c - 45);
+    else if (c >= '0' && c <= '9') return (c - 47);
+    else if (c >= 'A' && c <= 'Z') return (c - 53);
+    else if (c >= 'a' && c <= 'z') return (c - 59);
+    else return (c - 48);
 }
 
-uint32_t MultHash(char *key)
-{
+uint32_t MultHash(char *key) {
     uint64_t hash = 0;
     int i;
-    for (i = 0; i < k; ++i)
+    for (i = 0; i < k; ++i){
         hash = MAGIC_NUMBER * hash + key[i];
+    }
     return hash % TABLESIZE;
 }
 
-elem_ptr head_insert(elem_ptr head, char *wordInput)
-{
+elem_ptr head_insert(elem_ptr head, char *wordInput) {
     elem_ptr temp;
     temp = (elem_ptr)malloc(sizeof(elem));
-    if (temp != NULL)
-    {
+    if (temp != NULL) {
         temp->next = head;
         temp->word = (char *)malloc(sizeof(char) * (k + 1));
         strncpy(temp->word, wordInput, k + 1);
         temp->valid = true;
         head = temp;
     }
-    else
+    else {
         printf("\nErrore di allocazione.");
+    }
     return head;
 }
 
-elem_ptr tail_insert(elem_ptr head, char *wordInput) // per creare una lista da zero è importante inizializzare la testa a null
-{
-    if (head == NULL)
+elem_ptr tail_insert(elem_ptr head, char *wordInput) { // per creare una lista da zero è importante inizializzare la testa a null
+    if (head == NULL) {
         return head_insert(head, wordInput);
+    }
     head->next = tail_insert(head->next, wordInput);
     return head;
 }
 
-elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x)
-{
+elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
     int i, counts[64];
     elem_ptr temp;
     temp = (elem_ptr)malloc(sizeof(elem));
@@ -132,16 +121,15 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     return head;
 }
 
-elem_ptr tail_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) // per creare una lista da zero è importante inizializzare la testa a null
-{
-    if (head == NULL)
+elem_ptr tail_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
+    if (head == NULL) {
         return head_insert_check(head, wordInput, guessedChars, vincoli, x);
+    }
     head->next = tail_insert_check(head->next, wordInput, guessedChars, vincoli, x);
     return head;
 }
 
-bool elem_in_list(elem_ptr head, char *wordInput)
-{
+bool elem_in_list(elem_ptr head, char *wordInput) {
     for (; head != NULL; head = head->next)
     {
         if (strcmp(head->word, wordInput) == 0)
@@ -150,15 +138,7 @@ bool elem_in_list(elem_ptr head, char *wordInput)
     return false;
 }
 
-void visualizza(elem_ptr head) // unused
-{
-    for (; head != NULL; head = head->next)
-        printf("%s(%d) -> ", head->word, head->valid);
-    printf("NULL\n");
-}
-
-bool readline()
-{
+bool readline() {
     if (fgets(buffer, MAXWORDLEN, fileptr))
     {
         buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
@@ -168,63 +148,42 @@ bool readline()
         return false;
 }
 
-bool validateSample(char *sample, char *word, char *guesses)
-{
+bool validateSample(char *sample, char *word, char *guesses) {
     int i, j;
     bool isValid, found;
     isValid = true;
-    for (i = 0; i < k && isValid == true; i++) // scorre le lettere del sample e della word
+    for (i = 0; i < k && isValid == true; i++) // scorre le lettere della word e dei guesses
     {
         if (guesses[i] == '+') // se la lettera era indovinata...
         {
-            if (sample[i] == word[i]) // ...ed è uguale a quella che stiamo leggendo
-            {                    
+            if (sample[i] == word[i]) // ...ed è uguale a quella del sample
                 sample[i] = '?'; // la usiamo e proseguiamo
-            }
             else
                 isValid = false; // altrimenti invalidiamo subito
         }
-    }
-    for (i = 0; i < k && isValid == true; i++)
-    {
-        if (guesses[i] == '|') // se invece era al posto sbagliato...
+        else if (guesses[i] == '|') // se invece era al posto sbagliato...
         {
             if (sample[i] == word[i])
-            {
-                isValid = false; // non deve esserci lì!
-            }
-            else
-            {   
-                found = false;
-                for (j = 0; j < k && found == false; j++) // scorriamo tutto il sample alla ricerca di una posizione dove c'è sta lettera
+                isValid = false;
+            found = false; // la cerco
+            for (j = 0; j < k && found == false; j++)
+                if (sample[j] == word[i] && word[j] != word[i]) // trovata! ma non deve essere stata trovata dove non era permessa
                 {
-                    if (sample[j] == word[i] && !((guesses[j] == '/' || guesses[j] == '|') && word[j] == word[i])) // trovata! ma non deve essere stata trovata dove non era permessa
-                    {
-                        found = true;
-                        sample[j] = '?'; // la usiamo
-                    }
+                    found = true;
+                    sample[j] = '?'; // la usiamo
                 }
-                if (found == false)
-                    isValid = false;
-            }
+            if (found == false)
+                isValid = false;
         }
-    }
-    for (i = 0; i < k && isValid == true; i++)
-    {
-        if (guesses[i] == '/') // se la lettera era sbagliata...
-        {
+        else // se la lettera era assente dal riferimento...
             for (j = 0; j < k && isValid == true; j++) // ...la cerco
-            {
-                if (sample[j] == word[i])
+                if (sample[j] == word[i] && (word[j] != word[i] || guesses[j] != '+'))
                     isValid = false; // trovata! invalido tutto
-            }
-        }
     }
     return isValid;
 }
 
-void merge(char words[][k + 1], int low, int middle, int high) // funzione dallo pseudocodice, leggermente modificata
-{
+void merge(char words[][k + 1], int low, int middle, int high) { // funzione dallo pseudocodice, leggermente modificata
     int i, j, q;
     int n1 = middle - low + 1;
     int n2 = high - middle;
@@ -264,10 +223,8 @@ void merge(char words[][k + 1], int low, int middle, int high) // funzione dallo
     }
 }
 
-void mergeSort(char words[][k + 1], int low, int high) // funzione dallo pseudocodice, leggermente modificata
-{
-    if (low < high)
-    {
+void mergeSort(char words[][k + 1], int low, int high) { // funzione dallo pseudocodice, leggermente modificata
+    if (low < high) {
         int middle = (low + high) / 2;
         mergeSort(words, low, middle);
         mergeSort(words, middle + 1, high);
@@ -275,8 +232,7 @@ void mergeSort(char words[][k + 1], int low, int high) // funzione dallo pseudoc
     }
 }
 
-void stampa_filtrate(elem_ptr *list, uint32_t x)
-{
+void stampa_filtrate(elem_ptr *list, uint32_t x) {
     char words[x][k + 1];
     uint32_t i, xTmp;
     elem_ptr tempHead;
@@ -298,11 +254,7 @@ void stampa_filtrate(elem_ptr *list, uint32_t x)
         fprintf(wfileptr, "%s\n", words[xTmp]); // lo stampo
 }
 
-int main()
-{
-    clock_t t;
-    t = clock();
-
+int main() {
     elem_ptr *list;
     elem_ptr tempHead;
     chars_table vincoli[64];
@@ -501,8 +453,5 @@ int main()
                 fprintf(wfileptr, "not_exists\n");
         }
     }
-    t = clock() - t;
-    printf("No. of clicks %ld clicks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
-
     return 0;
 }

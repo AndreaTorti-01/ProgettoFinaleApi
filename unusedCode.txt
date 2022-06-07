@@ -1,0 +1,116 @@
+3 cycles validateSample
+
+bool validateSample(char *sample, char *word, char *guesses)
+{
+    int i, j;
+    bool isValid, found;
+    isValid = true;
+    for (i = 0; i < k && isValid == true; i++) // scorre le lettere del sample e della word
+    {
+        if (guesses[i] == '+') // se la lettera era indovinata...
+        {
+            if (sample[i] == word[i]) // ...ed è uguale a quella che stiamo leggendo
+            {                    
+                sample[i] = '?'; // la usiamo e proseguiamo
+            }
+            else
+                isValid = false; // altrimenti invalidiamo subito
+        }
+    }
+    for (i = 0; i < k && isValid == true; i++)
+    {
+        if (guesses[i] == '|') // se invece era al posto sbagliato...
+        {
+            if (sample[i] == word[i])
+            {
+                isValid = false; // non deve esserci lì!
+            }
+            else
+            {   
+                found = false;
+                for (j = 0; j < k && found == false; j++) // scorriamo tutto il sample alla ricerca di una posizione dove c'è sta lettera
+                {
+                    if (sample[j] == word[i] && !((guesses[j] == '/' || guesses[j] == '|') && word[j] == word[i])) // trovata! ma non deve essere stata trovata dove non era permessa
+                    {
+                        found = true;
+                        sample[j] = '?'; // la usiamo
+                    }
+                }
+                if (found == false)
+                    isValid = false;
+            }
+        }
+    }
+    for (i = 0; i < k && isValid == true; i++)
+    {
+        if (guesses[i] == '/') // se la lettera era sbagliata...
+        {
+            for (j = 0; j < k && isValid == true; j++) // ...la cerco
+            {
+                if (sample[j] == word[i])
+                    isValid = false; // trovata! invalido tutto
+            }
+        }
+    }
+    return isValid;
+}
+
+murmurhash
+
+uint32_t MultHash(char *key)
+{
+    static const uint32_t c1 = 0xcc9e2d51;
+    static const uint32_t c2 = 0x1b873593;
+    static const uint32_t r1 = 15;
+    static const uint32_t r2 = 13;
+    static const uint32_t m = 5;
+    static const uint32_t n = 0xe6546b64;
+
+    uint32_t hash = 69;
+
+    const int nblocks = k / 4;
+    const uint32_t *blocks = (const uint32_t *) key;
+    int i;
+    for (i = 0; i < nblocks; i++) {
+        uint32_t k = blocks[i];
+        k *= c1;
+        k = (k << r1) | (k >> (32 - r1));
+        k *= c2;
+
+        hash ^= k;
+        hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
+    }
+
+    const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
+    uint32_t k1 = 0;
+
+    switch (k & 3) {
+    case 3:
+        k1 ^= tail[2] << 16;
+    case 2:
+        k1 ^= tail[1] << 8;
+    case 1:
+        k1 ^= tail[0];
+
+        k1 *= c1;
+        k1 = (k1 << r1) | (k1 >> (32 - r1));
+        k1 *= c2;
+        hash ^= k1;
+    }
+
+    hash ^= k;
+    hash ^= (hash >> 16);
+    hash *= 0x85ebca6b;
+    hash ^= (hash >> 13);
+    hash *= 0xc2b2ae35;
+    hash ^= (hash >> 16);
+    return hash % TABLESIZE;
+}
+
+visualizzaLista
+
+void visualizzaLista(elem_ptr head) {
+    for (; head != NULL; head = head->next)
+        printf("%s(%d) -> ", head->word, head->valid);
+    printf("NULL\n");
+}
