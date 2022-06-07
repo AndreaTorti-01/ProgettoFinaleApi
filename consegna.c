@@ -261,8 +261,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x; // x numero parole valide
     bool exit, found;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = stdin;
+    wfileptr = stdout;
 
     i = 0;
     readline();
