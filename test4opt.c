@@ -29,8 +29,8 @@ typedef struct chars {
     int Occ;
 } chars_table;
 
-void custom_strcpy(char* dest, char* source, int lenght) {
-    memcpy(dest, source, sizeof(char) * lenght);
+void custom_strcpy(char* dest, char* source) {
+    memcpy(dest, source, sizeof(char) * (k+1));
 }
 
 uint8_t map(char c) {
@@ -56,7 +56,7 @@ elem_ptr head_insert(elem_ptr head, char *wordInput) {
     if (temp != NULL) {
         temp->next = head;
         temp->word = (char *)malloc(sizeof(char) * (k + 1));
-        custom_strcpy(temp->word, wordInput, k + 1);
+        custom_strcpy(temp->word, wordInput);
         temp->valid = true;
         head = temp;
     }
@@ -84,7 +84,7 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     {
         temp->next = head;
         temp->word = (char *)malloc(sizeof(char) * (k + 1));
-        custom_strcpy(temp->word, wordInput, k + 1);
+        custom_strcpy(temp->word, wordInput);
 
         temp->valid = true;
         for (i = 0; i < k && temp->valid == true; i++) // scorre le lettere della parola da inserire
@@ -194,9 +194,9 @@ void merge(char words[][k + 1], int low, int middle, int high) { // funzione dal
     int n2 = high - middle;
     char left[n1][k + 1], right[n2][k + 1];
     for (i = 0; i < n1; i++)
-        custom_strcpy(left[i], words[low + i], k + 1);
+        custom_strcpy(left[i], words[low + i]);
     for (j = 0; j < n2; j++)
-        custom_strcpy(right[j], words[middle + 1 + j], k + 1);
+        custom_strcpy(right[j], words[middle + 1 + j]);
     i = 0;
     j = 0;
     q = low;
@@ -204,25 +204,25 @@ void merge(char words[][k + 1], int low, int middle, int high) { // funzione dal
     {
         if (strcmp(left[i], right[j]) <= 0)
         {
-            custom_strcpy(words[q], left[i], k + 1);
+            custom_strcpy(words[q], left[i]);
             i++;
         }
         else
         {
-            custom_strcpy(words[q], right[j], k + 1);
+            custom_strcpy(words[q], right[j]);
             j++;
         }
         q++;
     }
     while (i < n1)
     {
-        custom_strcpy(words[q], left[i], k + 1);
+        custom_strcpy(words[q], left[i]);
         i++;
         q++;
     }
     while (j < n2)
     {
-        custom_strcpy(words[q], right[j], k + 1);
+        custom_strcpy(words[q], right[j]);
         j++;
         q++;
     }
@@ -248,7 +248,7 @@ void stampa_filtrate(elem_ptr *list, uint32_t x) {
         {
             if (tempHead->valid) // se la parola è valida
             {
-                custom_strcpy(words[xTmp], tempHead->word, k + 1); // la inserisco nell'array
+                custom_strcpy(words[xTmp], tempHead->word); // la inserisco nell'array
                 xTmp++; // scorro l'array avanti di 1
             }
         }
@@ -318,7 +318,7 @@ int main() {
     }
 
     readline();
-    custom_strcpy(riferimento, buffer, k + 1); // copia la parola di riferimento
+    custom_strcpy(riferimento, buffer); // copia la parola di riferimento
 
     readline();
     n = (int)strtol(buffer, (char **)NULL, 10); // legge il numero massimo di parole da confrontare
@@ -374,7 +374,7 @@ int main() {
                 }
 
                 readline();
-                custom_strcpy(riferimento, buffer, k + 1); // copia la parola di riferimento
+                custom_strcpy(riferimento, buffer); // copia la parola di riferimento
 
                 readline();
                 n = (int)strtol(buffer, (char **)NULL, 10); // legge il numero massimo di parole da confrontare
@@ -395,7 +395,7 @@ int main() {
             hash = MultHash(buffer);
             if (elem_in_list(list[hash], buffer))
             {
-                custom_strcpy(temp, riferimento, k + 1); // mette la parola di riferimento in temp
+                custom_strcpy(temp, riferimento); // mette la parola di riferimento in temp
                 for (i = 0; i < k; i++) // scorro per cercare lettere indovinate
                 {
                     output[i] = '/'; // imposto tutto l'output a "non esiste"
@@ -442,7 +442,7 @@ int main() {
                     {
                         if (tempHead->valid) // se è valida
                         {
-                            custom_strcpy(temp, tempHead->word, k + 1); // la mette in temp (sarà modificata!)
+                            custom_strcpy(temp, tempHead->word); // la mette in temp (sarà modificata!)
                             if (validateSample(temp, buffer, output) == true)
                                 x++; // aumenta di 1 il conteggio delle valide se temp è valida
                             else
