@@ -7,7 +7,7 @@
 int main(){
     time_t ts, te;
     char string[SIZE] = "hello";
-    int i, j;
+    int i;
     char stringcpy[SIZE];
     double time_taken;
 

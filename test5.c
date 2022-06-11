@@ -8,7 +8,7 @@
 #define true	(uint8_t)1
 #define false	(uint8_t)0
 #define MAGIC_NUMBER 7919
-#define MAXWORDLEN 64
+#define MAXWORDLEN 128
 
 uint32_t TABLESIZE = 0; // uint32_t max 4294967296
 int k;
@@ -153,39 +153,58 @@ bool readline() {
         return false;
 }
 
-bool validateSample(char *sample, char *word, char *guesses) {
-    int i, j;
+uint32_t validate_all_samples(char *word, char *guesses, elem_ptr* list) {
+    uint32_t i, x;
+    int j;
     bool isValid, found;
-    isValid = true;
-    for (i = 0; i < k && isValid == true; i++) // scorre le lettere della word e dei guesses
+    elem_ptr tempHead;
+    char temp[k+1];
+
+    x = 0;
+    for (i = 0; i < TABLESIZE; i++)
     {
-        if (guesses[i] == '+') // se la lettera era indovinata...
+        for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next)
         {
-            if (sample[i] == word[i]) // ...ed è uguale a quella del sample
-                sample[i] = '?'; // la usiamo e proseguiamo
-            else
-                isValid = false; // altrimenti invalidiamo subito
-        }
-        else if (guesses[i] == '|') // se invece era al posto sbagliato...
-        {
-            if (sample[i] == word[i])
-                isValid = false;
-            found = false; // la cerco
-            for (j = 0; j < k && found == false; j++)
-                if (sample[j] == word[i] && word[j] != word[i]) // trovata! ma non deve essere stata trovata dove non era permessa
+            if (tempHead->valid) // se è valida
+            {
+                strncpy(temp, tempHead->word, k+1); // la mette in temp (sarà modificata!)
+                isValid = true;
+                for (i = 0; i < k && isValid == true; i++) // scorre le lettere della word e dei guesses
                 {
-                    found = true;
-                    sample[j] = '?'; // la usiamo
+                    if (guesses[i] == '+') // se la lettera era indovinata...
+                    {
+                        if (temp[i] == word[i]) // ...ed è uguale a quella del sample
+                            temp[i] = '?'; // la usiamo e proseguiamo
+                        else
+                            isValid = false; // altrimenti invalidiamo subito
+                    }
+                    else if (guesses[i] == '|') // se invece era al posto sbagliato...
+                    {
+                        if (temp[i] == word[i])
+                            isValid = false;
+                        found = false; // la cerco
+                        for (j = 0; j < k && found == false; j++)
+                            if (temp[j] == word[i] && word[j] != word[i]) // trovata! ma non deve essere stata trovata dove non era permessa
+                            {
+                                found = true;
+                                temp[j] = '?'; // la usiamo
+                            }
+                        if (found == false)
+                            isValid = false;
+                    }
+                    else // se la lettera era assente dal riferimento...
+                        for (j = 0; j < k && isValid == true; j++) // ...la cerco
+                            if (temp[j] == word[i] && (word[j] != word[i] || guesses[j] != '+'))
+                                isValid = false; // trovata! invalido tutto
                 }
-            if (found == false)
-                isValid = false;
+                if (isValid == true)
+                    x++; // aumenta di 1 il conteggio delle valide se temp è valida
+                else
+                    tempHead->valid = false;
+            }
         }
-        else // se la lettera era assente dal riferimento...
-            for (j = 0; j < k && isValid == true; j++) // ...la cerco
-                if (sample[j] == word[i] && (word[j] != word[i] || guesses[j] != '+'))
-                    isValid = false; // trovata! invalido tutto
     }
-    return isValid;
+    return x;
 }
 
 void merge(char words[][k + 1], int low, int middle, int high) { // funzione dallo pseudocodice, leggermente modificata
@@ -268,8 +287,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x; // x numero parole valide
     bool exit, found;
-    fileptr = stdin;
-    wfileptr = stdout;
+    fileptr = fopen("opentestcases/test3.txt", "r");
+    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
 
     i = 0;
     readline();
@@ -435,21 +454,8 @@ int main() {
                 fprintf(wfileptr, "%s\n", output);
 
                 // inizia la validazione di quelle ancora valide
-                x = 0;
-                for (i = 0; i < TABLESIZE; i++)
-                {
-                    for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next)
-                    {
-                        if (tempHead->valid) // se è valida
-                        {
-                            custom_strcpy(temp, tempHead->word); // la mette in temp (sarà modificata!)
-                            if (validateSample(temp, buffer, output) == true)
-                                x++; // aumenta di 1 il conteggio delle valide se temp è valida
-                            else
-                                tempHead->valid = false;
-                        }
-                    }
-                }
+                x = validate_all_samples(buffer, output, list);
+
                 fprintf(wfileptr, "%d\n", x); // stampa il numero di valide
                 n--; // ho giocato un turno
                 if (n == 0) fprintf(wfileptr, "ko\n"); // se non ho più turni a disposizione stampo ko

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <time.h>
+//#include <time.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
@@ -182,7 +182,7 @@ bool validateSample(char *sample, char *word, char *guesses) {
         }
         else // se la lettera era assente dal riferimento...
             for (j = 0; j < k && isValid == true; j++) // ...la cerco
-                if (sample[j] == word[i] && (word[j] != word[i] || guesses[j] != '+'))
+                if (sample[j] == word[i] && (word[j] != word[i] || guesses[j] != '+')) // trovata! ma non deve essere stata trovata sarà già al posto giusto
                     isValid = false; // trovata! invalido tutto
     }
     return isValid;
@@ -260,7 +260,7 @@ void stampa_filtrate(elem_ptr *list, uint32_t x) {
 }
 
 int main() {
-    time_t t = clock();
+    //time_t t = clock();
 
     elem_ptr *list;
     elem_ptr tempHead;
@@ -268,8 +268,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x; // x numero parole valide
     bool exit, found;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = stdin;
+    wfileptr = stdout;
 
     i = 0;
     readline();
@@ -440,7 +440,7 @@ int main() {
                 {
                     for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next)
                     {
-                        if (tempHead->valid) // se è valida
+                        if (tempHead->valid == true) // se è valida
                         {
                             custom_strcpy(temp, tempHead->word); // la mette in temp (sarà modificata!)
                             if (validateSample(temp, buffer, output) == true)
@@ -461,7 +461,7 @@ int main() {
         }
     }
 
-    printf("program took %f seconds to execute \n", ((double)t/CLOCKS_PER_SEC));
+    //printf("program took %f seconds to execute \n", ((double)t/CLOCKS_PER_SEC));
 
     return 0;
 }
