@@ -15,6 +15,7 @@ int k;
 char buffer[MAXWORDLEN];
 FILE *fileptr;
 FILE *wfileptr;
+bool ordered;
 
 typedef struct node {
     char *word;
@@ -41,7 +42,7 @@ uint8_t map(char c) {
     else return (c - 48);
 }
 
-uint32_t MultHash(char *key) {
+uint32_t multHash(char *key) {
     uint32_t hash = 0;
     int i;
     for (i = 0; i < k; ++i){
@@ -66,69 +67,52 @@ elem_ptr head_insert(elem_ptr head, char *wordInput, bool validInput) {
     return head;
 }
 
-elem_ptr tail_insert(elem_ptr head, char *wordInput, bool validInput) { // per creare una lista da zero è importante inizializzare la testa a null
-    if (head == NULL) {
-        return head_insert(head, wordInput, validInput);
-    }
-    head->next = tail_insert(head->next, wordInput, validInput);
-    return head;
-}
-
 elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
     int i, counts[64];
     elem_ptr temp;
     temp = (elem_ptr)malloc(sizeof(elem));
     for (i = 0; i < 64; i++)
         counts[i] = 0; // inizializzo i conteggi
-    if (temp != NULL)
-    {
-        temp->next = head;
-        temp->word = (char *)malloc(sizeof(char) * (k + 1));
-        custom_strcpy(temp->word, wordInput);
 
-        temp->valid = true;
-        for (i = 0; i < k && temp->valid == true; i++) // scorre le lettere della parola da inserire
-        {
-            if (guessedChars[i] != '?') // se avevamo indovinato una lettera...
-            { 
-                if (wordInput[i] != guessedChars[i]) // e non è quella
-                    temp->valid = false; // invalidiamo
-                else counts[map(wordInput[i])]++; // se era quella aumento di uno il numero di volte che l'ho trovata
-            }
-        }
-        for (i = 0; i < k && temp->valid == true; i++) // le scorriamo di nuovo per contarle
-        {
-            if (vincoli[map(wordInput[i])].bannedInPos[i] == true) // se il char è bannato in quella posizione
+    
+    temp->next = head;
+    temp->word = (char *)malloc(sizeof(char) * (k + 1));
+    custom_strcpy(temp->word, wordInput);
+
+    temp->valid = true;
+    for (i = 0; i < k && temp->valid == true; i++) // scorre le lettere della parola da inserire
+    {
+        if (guessedChars[i] != '?') // se avevamo indovinato una lettera...
+        { 
+            if (wordInput[i] != guessedChars[i]) // e non è quella
                 temp->valid = false; // invalidiamo
-            else if (vincoli[map(wordInput[i])].minOcc != 0) // se ho già visto il char
-                counts[map(wordInput[i])]++; // aumento il suo conteggio
+            else counts[map(wordInput[i])]++; // se era quella aumento di uno il numero di volte che l'ho trovata
         }
-        for (i = 0; i < 64 && temp->valid == true; i++) // stavolta scorriamo tutti i char per controllare i conteggi
+    }
+    for (i = 0; i < k && temp->valid == true; i++) // le scorriamo di nuovo per contarle
+    {
+        if (vincoli[map(wordInput[i])].bannedInPos[i] == true) // se il char è bannato in quella posizione
+            temp->valid = false; // invalidiamo
+        else if (vincoli[map(wordInput[i])].minOcc != 0) // se ho già visto il char
+            counts[map(wordInput[i])]++; // aumento il suo conteggio
+    }
+    for (i = 0; i < 64 && temp->valid == true; i++) // stavolta scorriamo tutti i char per controllare i conteggi
+    {
+        if (vincoli[i].minOcc != 0) // se c'è un numero minimo di volte che deve comparire
         {
-            if (vincoli[i].minOcc != 0) // se c'è un numero minimo di volte che deve comparire
+            if (vincoli[i].Occ != 0) // o peggio un numero esatto
             {
-                if (vincoli[i].Occ != 0) // o peggio un numero esatto
-                {
-                    if (vincoli[i].Occ != counts[i]) // e non è quello
-                        temp->valid = false; // invalido
-                }
-                else if (vincoli[i].minOcc > counts[i]) // e non compare almeno quel numero di volte
+                if (vincoli[i].Occ != counts[i]) // e non è quello
                     temp->valid = false; // invalido
             }
+            else if (vincoli[i].minOcc > counts[i]) // e non compare almeno quel numero di volte
+                temp->valid = false; // invalido
         }
-
-        if (temp->valid == true) // se la parola è (ancora) valida
-            (*x)++; // aumento il conteggio di 1
-        head = temp;
     }
-    else
-        printf("\nErrore di allocazione.");
-    return head;
-}
 
-elem_ptr tail_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
-    if (head == NULL) return head_insert_check(head, wordInput, guessedChars, vincoli, x);
-    head->next = tail_insert_check(head->next, wordInput, guessedChars, vincoli, x);
+    if (temp->valid == true) // se la parola è (ancora) valida
+        (*x)++; // aumento il conteggio di 1
+    head = temp;
     return head;
 }
 
@@ -173,14 +157,21 @@ elem_ptr* rehash_and_double(elem_ptr* list){
         list[i] = NULL;
     for (i = 0; i < TABLESIZE / 2; i++){ // scorre i vecchi blocchi
         for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next){ // scorre all'interno dei blocchi
-            hash = MultHash(tempHead->word);
+            hash = multHash(tempHead->word);
             if (hash != i){ // se la posizione non è più corretta...
-                list[hash] = tail_insert(list[hash], tempHead->word, tempHead->valid); // inserisco in coda in posizione hash
+                list[hash] = head_insert(list[hash], tempHead->word, tempHead->valid); // inserisco in coda in posizione hash
                 list[i] = remove_elem(list[i], tempHead->word); // rimuovo l'elemento da posizione i
             }
         }
     }
     return list;
+}
+
+char** insert_in_array(char** array, char *word, uint32_t pos){
+    array = (char**)realloc(array, sizeof(char*) * (pos + 1));
+    array[pos] = (char*)malloc(sizeof(char) * (k + 1));
+    custom_strcpy(array[pos], word);
+    return array;
 }
 
 bool readline() {
@@ -303,6 +294,7 @@ int main() {
     //time_t t = clock();
 
     elem_ptr *list;
+    char **array = NULL;
     elem_ptr tempHead;
     chars_table vincoli[64];
     int n; // n numero di turni ancora disponibili
@@ -313,19 +305,17 @@ int main() {
     fileptr = fopen("opentestcases/test3.txt", "r");
     wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
 
-    totalWords = 0;
+    totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
         totalWords++;
         readline();
     } while (buffer[0] != '+');
     totalWords--;
-    
-    for (TABLESIZE = 1; TABLESIZE <= totalWords; TABLESIZE *= 2)
+    for (TABLESIZE = 1; TABLESIZE <= totalWords; TABLESIZE *= 2);
+    TABLESIZE *= 4;
     rewind(fileptr);
 
-    list = (elem_ptr *)malloc(sizeof(elem_ptr) * TABLESIZE); // inizializza l'hashtable
-    for (i = 0; i < TABLESIZE; i++)
-        list[i] = NULL;
+    list = (elem_ptr *)calloc(TABLESIZE, sizeof(elem_ptr)); // inizializza l'hashtable
 
     readline();
     k = (int)strtol(buffer, (char **)NULL, 10); // imposta k
@@ -339,8 +329,9 @@ int main() {
         readline();
         if (buffer[0] != '+')
         {
-            hash = MultHash(buffer);
-            list[hash] = tail_insert(list[hash], buffer, true);
+            hash = multHash(buffer);
+            list[hash] = head_insert(list[hash], buffer, true);
+            array = insert_in_array(array, buffer, x);
             x++;
         }
         else
@@ -384,8 +375,9 @@ int main() {
                     readline();
                     if (buffer[0] != '+')
                     {
-                        hash = MultHash(buffer);
-                        list[hash] = tail_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
+                        hash = multHash(buffer);
+                        list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
+                        array = insert_in_array(array, buffer, totalWords);
                         totalWords++;
                         if (totalWords * 2 > TABLESIZE)
                             list = rehash_and_double(list);
@@ -437,7 +429,7 @@ int main() {
         else if (n > 0)
         {
             // esegue solo se la parola è ammissibile e la confronta con r: + ok, | ok wrong pos, / no.
-            hash = MultHash(buffer);
+            hash = multHash(buffer);
             if (elem_in_list(list[hash], buffer))
             {
                 custom_strcpy(temp, riferimento); // mette la parola di riferimento in temp
