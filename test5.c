@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
@@ -286,6 +287,8 @@ void stampa_filtrate(elem_ptr *list, char **array, uint32_t x, uint32_t totalWor
 }
 
 int main() {
+    time_t t = clock();
+
     elem_ptr *list;
     char **array = NULL;
     elem_ptr tempHead;
@@ -293,10 +296,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = stdin;
-    wfileptr = stdout;
-    //fileptr = fopen("opentestcases/test3.txt", "r");
-    //wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = fopen("opentestcases/test3.txt", "r");
+    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
@@ -488,6 +489,8 @@ int main() {
                 fprintf(wfileptr, "not_exists\n");
         }
     }
+
+    printf("program took %f seconds to execute \n", ((double)t/CLOCKS_PER_SEC));
 
     return 0;
 }
