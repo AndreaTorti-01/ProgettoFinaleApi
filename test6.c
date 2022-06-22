@@ -1,7 +1,10 @@
+// radix!
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
@@ -28,6 +31,120 @@ typedef struct chars {
     int minOcc;
     int Occ;
 } chars_table;
+
+static int max(int *tab, long size) {
+	int max_val = INT_MIN;
+	for (long i = 0; i < size; i++) {
+		if (tab[i] > max_val) {
+			max_val = tab[i];
+		}
+	}
+	return max_val;
+}
+
+static int char_to_index(char character) {
+	int index;
+
+	if (character >= 'a') {
+		index = character - 'a';
+	} else {
+		index = character - 'A';
+	}
+
+	// '0' index is reserved for 'not existing' character (word shorter than sorted position)
+	return index + 1;
+}
+
+static char** counting_sort(char **input, long input_size, int *lengths, int sorted_position) {
+
+	long i;
+
+	const int counts_size = 26 * 2 + 1;
+	int *counts = calloc(counts_size, sizeof(int));
+	if (counts == NULL) {
+		fprintf(stderr, "Allocation error!\n");
+		exit(-1);
+	}
+
+	// counting
+	char curr_char;
+	int index;
+	for (i = 0; i < input_size; i++) {
+		// check if word has character at given position (may be shorter)
+		if (sorted_position < lengths[i]) {
+			curr_char = input[i][sorted_position];
+			index = char_to_index(curr_char);
+			counts[index]++;
+		} else {
+			counts[0]++;
+		}
+	}
+
+	// compute first positions in output array for each bucket
+	int total = 0;
+	int curr_count;
+	for (i = 0; i < counts_size; i++) {
+		curr_count = counts[i];
+		counts[i] = total;
+		total += curr_count;
+	}
+
+	char **output = malloc(input_size * sizeof(char*));
+	if (output == NULL) {
+		fprintf(stderr, "Allocation error!\n");
+		exit(-1);
+	}
+
+	int *output_lengths = malloc(input_size * sizeof(int));
+	if (output_lengths == NULL) {
+		fprintf(stderr, "Allocation error!\n");
+		exit(-1);
+	}
+
+	// computing element positions
+	for (i = 0; i < input_size; i++) {
+		if (sorted_position >= lengths[i]) {
+			output[counts[0]] = input[i];
+			counts[0]++;
+		} else {
+			index = char_to_index(input[i][sorted_position]);
+			int output_index = counts[index];
+			output[output_index] = input[i];
+			output_lengths[output_index] = lengths[i];
+			counts[index]++;
+		}
+	}
+
+	free(counts);
+
+	// copying positions to 'input' table
+	for (i = 0; i < input_size; i++) {
+		input[i] = output[i];
+		lengths[i] = output_lengths[i];
+	}
+
+	free(output);
+	free(output_lengths);
+
+	return input;
+}
+
+void radix(long input_size, char **input) {
+	int *lengths = malloc(input_size * sizeof(int));
+	if (lengths == NULL) {
+		fprintf(stderr, "Allocation error!\n");
+		exit(-1);
+	}
+
+	int max_length = k;
+
+	// sorting from least significant character
+	for (int position = max_length - 1; position >= 0; position--) {
+		counting_sort(input, input_size, lengths, position);
+	}
+
+	free(lengths);
+}
 
 void custom_strcpy(char* dest, char* source) {
     memcpy(dest, source, sizeof(char) * (k+1));
@@ -218,61 +335,12 @@ bool validateSample(char *sample, char *word, char *guesses) {
     return isValid;
 }
 
-void merge(char** words, int low, int middle, int high) { // funzione dallo pseudocodice, leggermente modificata
-    int i, j, q;
-    int n1 = middle - low + 1;
-    int n2 = high - middle;
-    char left[n1][k + 1], right[n2][k + 1];
-    for (i = 0; i < n1; i++)
-        custom_strcpy(left[i], words[low + i]);
-    for (j = 0; j < n2; j++)
-        custom_strcpy(right[j], words[middle + 1 + j]);
-    i = 0;
-    j = 0;
-    q = low;
-    while (i < n1 && j < n2)
-    {
-        if (strcmp(left[i], right[j]) <= 0)
-        {
-            custom_strcpy(words[q], left[i]);
-            i++;
-        }
-        else
-        {
-            custom_strcpy(words[q], right[j]);
-            j++;
-        }
-        q++;
-    }
-    while (i < n1)
-    {
-        custom_strcpy(words[q], left[i]);
-        i++;
-        q++;
-    }
-    while (j < n2)
-    {
-        custom_strcpy(words[q], right[j]);
-        j++;
-        q++;
-    }
-}
-
-void mergeSort(char** words, int low, int high) { // funzione dallo pseudocodice, leggermente modificata
-    if (low < high) {
-        int middle = (low + high) / 2;
-        mergeSort(words, low, middle);
-        mergeSort(words, middle + 1, high);
-        merge(words, low, middle, high);
-    }
-}
-
 void stampa_filtrate(elem_ptr *list, char **array, uint32_t x, uint32_t totalWords) {
     uint32_t i, xRead;
     elem_ptr tempHead;
 
     if (ordered == false) // ordina l'array se non è ordinato
-        mergeSort(array, 0, totalWords - 1); // wtf
+        radix(totalWords, array); // wtf
     ordered = true; // ora è ordinato!
 
     for (i = 0, xRead = 0; i < totalWords && xRead < x; i++){ // scorre le parole nell'array finchè non le finisco oppure ho letto tutte quelle valide
@@ -293,10 +361,10 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = stdin;
-    wfileptr = stdout;
-    //fileptr = fopen("opentestcases/test3.txt", "r");
-    //wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    // fileptr = stdin;
+    // wfileptr = stdout;
+    fileptr = fopen("opentestcases/test3.txt", "r");
+    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
