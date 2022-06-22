@@ -1,2 +1,13 @@
-test5 - rendo il file funzionante con mergesort solo quando serve, allocando il dizionario come array dinamico nel main
-test6 - sostituisco mergesort
+Il task del 18 è uno solo e credo che testi tutto, 
+non avrebbe molto senso mettere soglia minima senza un programma funzionante. 
+Quello che ho capito attraverso testing molto empirico, usa uno sfacelo di stringhe di 5 caratteri 
+(compreso tra 163.840 e 204.800 ma più vicino al secondo che al primo) e le inserisce con 20 inserimenti diversi 
+(quindi non tutte all'inizio, ma con +inizio_inserimento in mezzo)
+
+il problema principale sono i vincoli di tempo e memoria obv con un numero così grande, 
+però essendo che le stringhe son così corte appena inserisce un paio di parole il dizionario filtrato si restringe di molto
+
+ah e starta 15 partite
+
+quindi tipo avrai 15 volte in cui devi filtrare un dizionario enorme e poi un tot di volte dove il dizionario sarà medio 
+(credo < 100 parole) e poi un tot dove sarà molto piccola

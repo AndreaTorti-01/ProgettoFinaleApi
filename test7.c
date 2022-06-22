@@ -1,5 +1,3 @@
-// ordered insert into list of pointers
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +11,7 @@
 
 uint32_t TABLESIZE = 0; // uint32_t max 4294967296
 int k;
+bool ordered = false;
 char buffer[MAXWORDLEN];
 FILE *fileptr;
 FILE *wfileptr;
@@ -24,12 +23,17 @@ typedef struct node {
 } elem;
 typedef elem *elem_ptr;
 
-typedef struct N {
-    elem_ptr tableEntry;
-    struct N *next;
-} node_t;
+typedef struct nodo {
+    elem_ptr tableEntry; // data
+    bool c; // 1-red, 0-black
+    struct nodo* p; // parent
+    struct nodo* r; // right-child
+    struct nodo* l; // left child
+} apple_t;
+typedef  apple_t *apple;
 
-typedef node_t* node_ptr;
+// global root for the entire tree
+apple root = NULL;
 
 typedef struct chars {
     bool* bannedInPos;
@@ -119,25 +123,13 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     return head;
 }
 
-node_ptr head_insert_simple_list(elem_ptr *list, node_ptr head, char* word){
-    node_ptr temp;
-    elem_ptr tempHead;
-    temp = (node_ptr) malloc(sizeof(node_t));
-    temp->next = head;
-    for (tempHead = list[multHash(word)]; tempHead != NULL; tempHead = tempHead->next)
-        if (strcmp(tempHead->word, word) == 0)
-            break;
-    temp->tableEntry = tempHead;
-    head = temp;
-    return head;
-}
-
-node_ptr ordered_insert(elem_ptr *list, node_ptr head, char* word){
-    if (head==NULL || strcmp(head->tableEntry->word, word) > 0){
-        return head_insert_simple_list(list, head, word);
+bool word_is_valid(elem_ptr head, char *wordInput) {
+    for (; head != NULL; head = head->next)
+    {
+        if (strcmp(head->word, wordInput) == 0)
+            return true;
     }
-    head->next = ordered_insert(list, head->next, word);
-    return head;
+    return false;
 }
 
 elem_ptr remove_elem(elem_ptr head, char *wordInput) {
@@ -154,21 +146,6 @@ elem_ptr remove_elem(elem_ptr head, char *wordInput) {
     }
     head->next = remove_elem(head->next, wordInput);
     return head;
-}
-
-bool word_is_valid(elem_ptr head, char *wordInput) {
-    for (; head != NULL; head = head->next)
-    {
-        if (strcmp(head->word, wordInput) == 0)
-            return true;
-    }
-    return false;
-}
-
-void visualizzaLista(node_ptr head) {
-    for (; head != NULL; head = head->next)
-        printf("%s(%d) -> ", head->tableEntry->word, head->tableEntry->valid);
-    printf("NULL\n");
 }
 
 elem_ptr* rehash_and_double(elem_ptr* list){
@@ -236,25 +213,137 @@ bool validateSample(char *sample, char *word, char *guesses) {
     return isValid;
 }
 
-void stampa_filtrate(node_ptr simpleList, uint32_t x) {
-    uint32_t xRead;
-    for (xRead = 0; xRead < x; simpleList = simpleList->next)  // scorre le parole già ordinate
-        if (simpleList->tableEntry->valid){  // se è valida
-            xRead++;
-            fprintf(wfileptr, "%s\n", simpleList->tableEntry->word); // va stampata
+apple inserisci_in_albero(apple trav, apple temp) {
+    if (trav == NULL)
+        return temp;
+    if (strcmp(temp->tableEntry->word, trav->tableEntry->word) < 0) {
+        trav->l = inserisci_in_albero(trav->l, temp);
+        trav->l->p = trav;
+    }
+    else {
+        trav->r = inserisci_in_albero(trav->r, temp);
+        trav->r->p = trav;
+    }
+
+    return trav;
+}
+
+// Function performing right rotation
+// of the passed node
+void rot_dx(apple temp) {
+    apple left = temp->l;
+    temp->l = left->r;
+    if (temp->l)
+        temp->l->p = temp;
+    left->p = temp->p;
+    if (!temp->p)
+        root = left;
+    else if (temp == temp->p->l)
+        temp->p->l = left;
+    else
+        temp->p->r = left;
+    left->r = temp;
+    temp->p = left;
+}
+ 
+// Function performing left rotation
+// of the passed node
+void rot_sx(apple temp) {
+    apple right = temp->r;
+    temp->r = right->l;
+    if (temp->r)
+        temp->r->p = temp;
+    right->p = temp->p;
+    if (!temp->p)
+        root = right;
+    else if (temp == temp->p->l)
+        temp->p->l = right;
+    else
+        temp->p->r = right;
+    right->l = temp;
+    temp->p = right;
+}
+ 
+// This function fixes violations
+// caused by inserisci_in_albero insertion
+void sistema_albero(apple root, apple pt) {
+    apple parent_pt = NULL;
+    apple grand_parent_pt = NULL;
+    while ((pt != root) && (pt->c != false) && (pt->p->c == true)) {
+        parent_pt = pt->p;
+        grand_parent_pt = pt->p->p;
+ 
+        if (parent_pt == grand_parent_pt->l) {
+ 
+            apple uncle_pt = grand_parent_pt->r;
+
+            if (uncle_pt != NULL && uncle_pt->c == true) {
+                grand_parent_pt->c = true;
+                parent_pt->c = false;
+                uncle_pt->c = false;
+                pt = grand_parent_pt;
+            }
+ 
+            else {
+                if (pt == parent_pt->r) {
+                    rot_sx(parent_pt);
+                    pt = parent_pt;
+                    parent_pt = pt->p;
+                }
+                rot_dx(grand_parent_pt);
+                bool t = parent_pt->c;
+                parent_pt->c = grand_parent_pt->c;
+                grand_parent_pt->c = t;
+                pt = parent_pt;
+            }
         }
+
+        else {
+            apple uncle_pt = grand_parent_pt->l;
+            if ((uncle_pt != NULL) && (uncle_pt->c == true)) {
+                grand_parent_pt->c = true;
+                parent_pt->c = false;
+                uncle_pt->c = false;
+                pt = grand_parent_pt;
+            }
+            else {
+                if (pt == parent_pt->l) {
+                    rot_dx(parent_pt);
+                    pt = parent_pt;
+                    parent_pt = pt->p;
+                }
+
+                rot_sx(grand_parent_pt);
+                bool t = parent_pt->c;
+                parent_pt->c = grand_parent_pt->c;
+                grand_parent_pt->c = t;
+                pt = parent_pt;
+            }
+        }
+    }
+ 
+    root->c = false;
+}
+
+void stampa_filtrate(apple temp) {
+    if (temp == NULL)
+        return;
+    stampa_filtrate(temp->l);
+    if (temp->tableEntry->valid)
+        fprintf(wfileptr, "%s\n", temp->tableEntry->word);
+    stampa_filtrate(temp->r);
 }
 
 int main() {
     elem_ptr *list = NULL;
-    node_ptr simpleList = NULL;
+    apple tempNode;
     elem_ptr tempHead;
     chars_table vincoli[64];
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = fopen("opentestcases/upto18_2.txt", "r");
+    wfileptr = fopen("opentestcases/upto18_2.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
@@ -282,12 +371,25 @@ int main() {
         {
             hash = multHash(buffer);
             list[hash] = head_insert(list[hash], buffer, true);
-            simpleList = ordered_insert(list, simpleList, buffer);
+
+            // ora si occupa dell'inserimento in albero
+            for (tempHead = list[hash]; tempHead != NULL; tempHead = tempHead->next)
+                if (strcmp(tempHead->word, buffer) == 0)
+                    break;
+            tempNode = (apple)malloc(sizeof(apple_t));
+            tempNode->r = NULL;
+            tempNode->l = NULL;
+            tempNode->p = NULL;
+            tempNode->tableEntry = tempHead;
+            root = inserisci_in_albero(root, tempNode);
+            sistema_albero(root, tempNode);
+
             x++;
         }
         else
             exit = true;
     }
+    ordered = false;
 
     // inizia la partita
     for (i = 0; i < k; i++) // azzera guessedChars
@@ -313,7 +415,7 @@ int main() {
         {
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0)
-                stampa_filtrate(simpleList, x);
+                stampa_filtrate(root);
 
             // popola ulteriormente la lista di parole ammissibili
             else if (strcmp(buffer, "+inserisci_inizio") == 0)
@@ -324,7 +426,19 @@ int main() {
                     if (buffer[0] != '+') { // aggiunge parola all'hashtable e all'array
                         hash = multHash(buffer);
                         list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
-                        simpleList = ordered_insert(list, simpleList, buffer);
+                        
+                        // ora si occupa dell'inserimento in albero
+                        for (tempHead = list[hash]; tempHead != NULL; tempHead = tempHead->next)
+                            if (strcmp(tempHead->word, buffer) == 0)
+                                break;
+                        tempNode = (apple)malloc(sizeof(apple_t));
+                        tempNode->r = NULL;
+                        tempNode->l = NULL;
+                        tempNode->p = NULL;
+                        tempNode->tableEntry = tempHead;
+                        root = inserisci_in_albero(root, tempNode);
+                        sistema_albero(root, tempNode);
+
                         totalWords++;
                         if (totalWords * 2 > TABLESIZE)
                             list = rehash_and_double(list);
@@ -332,6 +446,7 @@ int main() {
                     else
                         exit = true;
                 }
+                ordered = false;
             }
 
             // inizia una nuova partita
