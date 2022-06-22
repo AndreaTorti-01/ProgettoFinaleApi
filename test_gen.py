@@ -166,13 +166,13 @@ def main():
                     help="Seme da cui ricavare la partita")
     ap.add_argument('-a', '--alphabet', dest='alphabet', type=str, default=default_alphabet,
                     help="L'alfabeto da utilizzare (deve essere un sottoinsieme di quello di base)")
-    ap.add_argument('-n', '--dict-size', dest='dict_size', type=int, default=300000,    # was 50
+    ap.add_argument('-n', '--dict-size', dest='dict_size', type=int, default=50,
                     help='Numero di parole nel dizionario')
     ap.add_argument('-k', '--word-size', dest='word_size', type=int, default=5,
                     help='Lunghezza delle parole')
     ap.add_argument('-r', '--dict-rand', dest='dict_rand', type=float, default=0.2,
                     help='Frazione di caratteri cambiati a ogni passo durante la generazione del dizionario')
-    ap.add_argument('-g', '--n-games', dest='games', type=int, default=50,   # was 5
+    ap.add_argument('-g', '--n-games', dest='games', type=int, default=5,
                     help='Numero di partite')
     ap.add_argument('-i', '--p-insert', dest='p_insert', type=float, default=0.1,
                     help='Probabilità di inserire comandi di inserimento')
@@ -182,7 +182,7 @@ def main():
                     help='Massimo numero di parole inseribili in un comando di inserimento')
     ap.add_argument('-e', '--game-p-inv', dest='game_p_inv', type=float, default=0.1,
                     help='Probabilità di inserire una parola invalida in una partita')
-    ap.add_argument('-f', '--game-p-filter', dest='game_p_filter', type=float, default=0.9, # was 0.1
+    ap.add_argument('-f', '--game-p-filter', dest='game_p_filter', type=float, default=0.1,
                     help='Probabilità di inserire una richiesta di stampa parole filtrate in una partita')
     ap.add_argument('-m', '--game-len-min', dest='game_len_min', type=int, default=7,
                     help='Lunghezza minima di una partita')

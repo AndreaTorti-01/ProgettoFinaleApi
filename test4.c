@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+//#include <time.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
@@ -218,7 +219,7 @@ bool validateSample(char *sample, char *word, char *guesses) {
     return isValid;
 }
 
-void merge(char** words, int low, int middle, int high) { // funzione dallo pseudocodice, leggermente modificata
+void merge(char words[][k + 1], int low, int middle, int high) { // funzione dallo pseudocodice, leggermente modificata
     int i, j, q;
     int n1 = middle - low + 1;
     int n2 = high - middle;
@@ -258,7 +259,7 @@ void merge(char** words, int low, int middle, int high) { // funzione dallo pseu
     }
 }
 
-void mergeSort(char** words, int low, int high) { // funzione dallo pseudocodice, leggermente modificata
+void mergeSort(char words[][k + 1], int low, int high) { // funzione dallo pseudocodice, leggermente modificata
     if (low < high) {
         int middle = (low + high) / 2;
         mergeSort(words, low, middle);
@@ -267,25 +268,31 @@ void mergeSort(char** words, int low, int high) { // funzione dallo pseudocodice
     }
 }
 
-void stampa_filtrate(elem_ptr *list, char **array, uint32_t x, uint32_t totalWords) {
-    uint32_t i, xRead;
+void stampa_filtrate(elem_ptr *list, uint32_t x) {
+    char words[x][k + 1];
+    uint32_t i, xTmp;
     elem_ptr tempHead;
-
-    if (ordered == false) // ordina l'array se non è ordinato
-        mergeSort(array, 0, totalWords - 1); // wtf
-    ordered = true; // ora è ordinato!
-
-    for (i = 0, xRead = 0; i < totalWords && xRead < x; i++){ // scorre le parole nell'array finchè non le finisco oppure ho letto tutte quelle valide
-        for (tempHead = list[multHash(array[i])]; tempHead != NULL; tempHead = tempHead->next) // cerca se la parola è valida nella lista
-            if ((strcmp(tempHead->word, array[i]) == 0) && (tempHead->valid == true)) { // se è valida
-                fprintf(wfileptr, "%s\n", array[i]); // va stampata
-                xRead++; // una in più letta
+    xTmp = 0;
+    for (i = 0; i < TABLESIZE; i++) // scorro tutte le parole
+    {
+        for (tempHead = list[i]; tempHead != NULL; tempHead = tempHead->next)
+        {
+            if (tempHead->valid) // se la parola è valida
+            {
+                custom_strcpy(words[xTmp], tempHead->word); // la inserisco nell'array
+                xTmp++; // scorro l'array avanti di 1
             }
-
+        }
     }
+    if (x != 1)
+        mergeSort(words, 0, x - 1); // ordino l'array
+    for (xTmp = 0; xTmp < x; xTmp++)
+        fprintf(wfileptr, "%s\n", words[xTmp]); // lo stampo
 }
 
 int main() {
+    //time_t t = clock();
+
     elem_ptr *list;
     char **array = NULL;
     elem_ptr tempHead;
@@ -293,10 +300,10 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = stdin;
-    wfileptr = stdout;
-    //fileptr = fopen("opentestcases/test3.txt", "r");
-    //wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    //fileptr = stdin;
+    //wfileptr = stdout;
+    fileptr = fopen("opentestcases/upto18_2.txt", "r");
+    wfileptr = fopen("opentestcases/upto18_2.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
@@ -315,7 +322,7 @@ int main() {
 
     char riferimento[k + 1], temp[k + 1], output[k + 1], guessedChars[k + 1]; // crea vari array di supporto
 
-    x = 0; // popola l'hashtable e l'array di parole ammissibili
+    x = 0; // popola la hashtable di parole ammissibili
     exit = false;
     while (exit == false)
     {
@@ -330,7 +337,6 @@ int main() {
         else
             exit = true;
     }
-    ordered = false; // ora l'array è disordinato
 
     // inizia la partita
     for (i = 0; i < k; i++) // azzera guessedChars
@@ -356,15 +362,19 @@ int main() {
         {
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0)
-                stampa_filtrate(list, array, x, totalWords);
+            {
+                stampa_filtrate(list, x);
+            }
 
             // popola ulteriormente la lista di parole ammissibili
             else if (strcmp(buffer, "+inserisci_inizio") == 0)
             {
                 exit = false;
-                while (exit == false) {
+                while (exit == false)
+                {
                     readline();
-                    if (buffer[0] != '+') { // aggiunge parola all'hashtable e all'array
+                    if (buffer[0] != '+')
+                    {
                         hash = multHash(buffer);
                         list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
                         array = insert_in_array(array, buffer, totalWords);
@@ -375,7 +385,6 @@ int main() {
                     else
                         exit = true;
                 }
-                ordered = false; // ora l'array è disordinato
             }
 
             // inizia una nuova partita
@@ -488,6 +497,8 @@ int main() {
                 fprintf(wfileptr, "not_exists\n");
         }
     }
+
+    //printf("program took %f seconds to execute \n", ((double)t/CLOCKS_PER_SEC));
 
     return 0;
 }

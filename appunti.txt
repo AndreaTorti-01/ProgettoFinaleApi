@@ -1,0 +1,2 @@
+test5 - rendo il file funzionante con mergesort solo quando serve, allocando il dizionario come array dinamico nel main
+test6 - sostituisco mergesort
