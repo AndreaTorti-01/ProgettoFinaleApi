@@ -302,8 +302,8 @@ int main() {
     bool exit, found;
     //fileptr = stdin;
     //wfileptr = stdout;
-    fileptr = fopen("opentestcases/upto18.txt", "r");
-    wfileptr = fopen("opentestcases/upto18.myoutput.txt", "w");
+    fileptr = fopen("opentestcases/upto18_2.txt", "r");
+    wfileptr = fopen("opentestcases/upto18_2.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
