@@ -1,9 +1,10 @@
-// ordered insert into list of pointers
+// dynamic array of strings, with radix sort only when useful
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
@@ -13,6 +14,7 @@
 
 uint32_t TABLESIZE = 0; // uint32_t max 4294967296
 int k;
+bool ordered;
 char buffer[MAXWORDLEN];
 FILE *fileptr;
 FILE *wfileptr;
@@ -23,13 +25,6 @@ typedef struct node {
     struct node *next;
 } elem;
 typedef elem *elem_ptr;
-
-typedef struct N {
-    elem_ptr tableEntry;
-    struct N *next;
-} node_t;
-
-typedef node_t* node_ptr;
 
 typedef struct chars {
     bool* bannedInPos;
@@ -54,6 +49,87 @@ uint32_t multHash(char *key) {
     return hash % TABLESIZE;
 }
 
+/* helper routine for swapping */
+void swapStrings(char **a, char **b) {
+    char *temp;
+
+    temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+/* call with k=0 */
+void radixSort(int n, char **a, int k) {
+    int i;
+    int count[UCHAR_MAX+1];  /* number of strings with given character in position k */
+    int mode;                /* most common position-k character */
+    char **bucket[UCHAR_MAX+1]; /* position of character block in output */
+    char **top[UCHAR_MAX+1];    /* first unused index in this character block */
+
+    /* loop implements tail recursion on most common character */
+    while(n > 1) {
+
+        /* count occurrences of each character */
+        memset(count, 0, sizeof(int)*(UCHAR_MAX+1));
+
+        for(i = 0; i < n; i++) {
+            count[(unsigned char) a[i][k]]++;
+        }
+
+        /* find the most common nonzero character */
+        /* we will handle this specially */
+        mode = 1;
+        for(i = 2; i < UCHAR_MAX+1; i++) {
+            if(count[i] > count[mode]) {
+                mode = i;
+            }
+        }
+
+        if(count[mode] < n) {
+
+            /* generate bucket and top fields */
+            bucket[0] = top[0] = a;
+            for(i = 1; i < UCHAR_MAX+1; i++) {
+                top[i] = bucket[i] = bucket[i-1] + count[i-1];
+            }
+
+            /* reorder elements by k-th character */
+            /* this is similar to dutch flag algorithm */
+            /* we start at bottom character and swap values out until everything is in place */
+            /* invariant is that for all i, bucket[i] <= j < top[i] implies a[j][k] == i */
+            for(i = 0; i < UCHAR_MAX+1; i++) {
+                while(top[i] < bucket[i] + count[i]) {
+                    if((unsigned char) top[i][0][k] == i) {
+                        /* leave it in place, advance bucket */
+                        top[i]++;
+                    } else {
+                        /* swap with top of appropriate block */
+                        swapStrings(top[i], top[(unsigned char) top[i][0][k]]++);
+                    }
+                }
+            }
+
+            /* we have now reordered everything */
+            /* recurse on all but 0 and mode */
+            for(i = 1; i < UCHAR_MAX+1; i++) {
+                if(i != mode) {
+                    radixSort(count[i], bucket[i], k+1);
+                }
+            }
+
+            /* tail recurse on mode */
+            n = count[mode];
+            a = bucket[mode];
+            k++;
+
+        } else {
+
+            /* tail recurse on whole pile */
+            k++;
+        }
+    }
+}
+
 elem_ptr head_insert(elem_ptr head, char *wordInput, bool validInput) {
     elem_ptr temp;
     temp = (elem_ptr)malloc(sizeof(elem));
@@ -70,6 +146,7 @@ elem_ptr head_insert(elem_ptr head, char *wordInput, bool validInput) {
     return head;
 }
 
+// aggiunge 1 a x se wordInput è valido rispetto ai vincoli attuali
 elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
     int i, counts[64];
     elem_ptr temp;
@@ -119,25 +196,29 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     return head;
 }
 
-node_ptr head_insert_simple_list(elem_ptr *list, node_ptr head, char* word){
-    node_ptr temp;
-    elem_ptr tempHead;
-    temp = (node_ptr) malloc(sizeof(node_t));
-    temp->next = head;
-    for (tempHead = list[multHash(word)]; tempHead != NULL; tempHead = tempHead->next)
-        if (strcmp(tempHead->word, word) == 0)
-            break;
-    temp->tableEntry = tempHead;
-    head = temp;
-    return head;
+char **append_word(char **array, char* word, uint32_t position){
+    array = (char**)realloc(array, sizeof(char*) * (position+1));
+    array[position] = calloc(k+1, sizeof(char));
+    strcpy(array[position], word);
+    return array;
 }
 
-node_ptr ordered_insert(elem_ptr *list, node_ptr head, char* word){
-    if (head==NULL || strcmp(head->tableEntry->word, word) > 0){
-        return head_insert_simple_list(list, head, word);
+bool word_is_valid(elem_ptr head, char *wordInput) {
+    for (; head != NULL; head = head->next)
+    {
+        if (strcmp(head->word, wordInput) == 0 && head->valid)
+            return true;
     }
-    head->next = ordered_insert(list, head->next, word);
-    return head;
+    return false;
+}
+
+bool word_exists(elem_ptr head, char *wordInput) {
+    for (; head != NULL; head = head->next)
+    {
+        if (strcmp(head->word, wordInput) == 0)
+            return true;
+    }
+    return false;
 }
 
 elem_ptr remove_elem(elem_ptr head, char *wordInput) {
@@ -154,21 +235,6 @@ elem_ptr remove_elem(elem_ptr head, char *wordInput) {
     }
     head->next = remove_elem(head->next, wordInput);
     return head;
-}
-
-bool word_exists(elem_ptr head, char *wordInput) {
-    for (; head != NULL; head = head->next)
-    {
-        if (strcmp(head->word, wordInput) == 0)
-            return true;
-    }
-    return false;
-}
-
-void visualizzaLista(node_ptr head) {
-    for (; head != NULL; head = head->next)
-        printf("%s(%d) -> ", head->tableEntry->word, head->tableEntry->valid);
-    printf("NULL\n");
 }
 
 elem_ptr* rehash_and_double(elem_ptr* list){
@@ -236,18 +302,23 @@ bool validateSample(char *sample, char *word, char *guesses) {
     return isValid;
 }
 
-void stampa_filtrate(node_ptr simpleList, uint32_t x) {
-    uint32_t xRead;
-    for (xRead = 0; xRead < x; simpleList = simpleList->next)  // scorre le parole già ordinate
-        if (simpleList->tableEntry->valid){  // se è valida
+void stampa_filtrate(elem_ptr *list,char **array, uint32_t x, uint32_t totalWords) {
+    uint32_t xRead, i;
+    if (ordered == false){
+        radixSort(totalWords-1, array, 0);
+        ordered = true;
+    }
+    for (xRead = 0, i = 0; xRead < x; i++) {  // scorre le parole già ordinate
+        if (word_is_valid(list[multHash(array[i])], array[i])){  // se è valida
             xRead++;
-            fprintf(wfileptr, "%s\n", simpleList->tableEntry->word); // va stampata
+            fprintf(wfileptr, "%s\n", array[i]); // va stampata
         }
+    }
 }
 
 int main() {
     elem_ptr *list = NULL;
-    node_ptr simpleList = NULL;
+    char** array = malloc(0); // array ordinato del dizionario
     elem_ptr tempHead;
     chars_table vincoli[64];
     int n; // n numero di turni ancora disponibili
@@ -282,12 +353,13 @@ int main() {
         {
             hash = multHash(buffer);
             list[hash] = head_insert(list[hash], buffer, true);
-            simpleList = ordered_insert(list, simpleList, buffer);
+            array = append_word(array, buffer, x);
             x++;
         }
         else
             exit = true;
     }
+    ordered = false;
 
     // inizia la partita
     for (i = 0; i < k; i++) // azzera guessedChars
@@ -313,7 +385,7 @@ int main() {
         {
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0)
-                stampa_filtrate(simpleList, x);
+                stampa_filtrate(list, array, x, totalWords);
 
             // popola ulteriormente la lista di parole ammissibili
             else if (strcmp(buffer, "+inserisci_inizio") == 0)
@@ -324,7 +396,7 @@ int main() {
                     if (buffer[0] != '+') { // aggiunge parola all'hashtable e all'array
                         hash = multHash(buffer);
                         list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
-                        simpleList = ordered_insert(list, simpleList, buffer);
+                        array = append_word(array, buffer, totalWords-1);
                         totalWords++;
                         if (totalWords * 2 > TABLESIZE)
                             list = rehash_and_double(list);
@@ -332,6 +404,7 @@ int main() {
                     else
                         exit = true;
                 }
+                ordered = false;
             }
 
             // inizia una nuova partita

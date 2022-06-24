@@ -157,7 +157,7 @@ elem_ptr remove_elem(elem_ptr head, char *wordInput) {
     return head;
 }
 
-bool word_is_valid(elem_ptr head, char *wordInput) {
+bool word_exists(elem_ptr head, char *wordInput) {
     for (; head != NULL; head = head->next)
     {
         if (strcmp(head->word, wordInput) == 0)
@@ -439,7 +439,7 @@ int main() {
         {
             // esegue solo se la parola è ammissibile e la confronta con r: + ok, | ok wrong pos, / no.
             hash = multHash(buffer);
-            if (word_is_valid(list[hash], buffer))
+            if (word_exists(list[hash], buffer))
             {
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
                 for (i = 0; i < k; i++) // scorro per cercare lettere indovinate
