@@ -1,4 +1,4 @@
-// ordered insert into list of pointers
+// list with mergesort, destroyed at the end of game
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +16,7 @@ int k;
 char buffer[MAXWORDLEN];
 FILE *fileptr;
 FILE *wfileptr;
+bool list_exists;
 
 typedef struct node {
     char *word;
@@ -24,18 +25,17 @@ typedef struct node {
 } elem;
 typedef elem *elem_ptr;
 
-typedef struct N {
-    elem_ptr tableEntry;
-    struct N *next;
-} node_t;
-
-typedef node_t* node_ptr;
-
 typedef struct chars {
     bool* bannedInPos;
     int minOcc;
     int Occ;
 } chars_table;
+
+typedef struct nodo {
+    elem_ptr ptrToStruct;
+    struct nodo *next;
+} list;
+typedef list *list_ptr;
 
 uint8_t map(char c) {
     if (c == '-') return (c - 45);
@@ -68,6 +68,21 @@ elem_ptr head_insert(elem_ptr head, char *wordInput, bool validInput) {
         printf("\nErrore di allocazione.");
     }
     return head;
+}
+
+list_ptr head_insert_valids_list(list_ptr head, elem_ptr ptrToStruct_input) {
+    list_ptr temp;
+    temp = (list_ptr)malloc(sizeof(list));
+    temp->next = head;
+    temp->ptrToStruct = ptrToStruct_input;
+    head = temp;
+    return head;
+}
+
+void delete_list(list_ptr head){
+    if (head == NULL) return;
+    delete_list(head->next);
+    free(head);
 }
 
 elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, chars_table vincoli[], uint32_t *x) {
@@ -119,27 +134,6 @@ elem_ptr head_insert_check(elem_ptr head, char *wordInput, char *guessedChars, c
     return head;
 }
 
-node_ptr head_insert_simple_list(elem_ptr *list, node_ptr head, char* word){
-    node_ptr temp;
-    elem_ptr tempHead;
-    temp = (node_ptr) malloc(sizeof(node_t));
-    temp->next = head;
-    for (tempHead = list[multHash(word)]; tempHead != NULL; tempHead = tempHead->next)
-        if (strcmp(tempHead->word, word) == 0)
-            break;
-    temp->tableEntry = tempHead;
-    head = temp;
-    return head;
-}
-
-node_ptr ordered_insert(elem_ptr *list, node_ptr head, char* word){
-    if (head==NULL || strcmp(head->tableEntry->word, word) > 0){
-        return head_insert_simple_list(list, head, word);
-    }
-    head->next = ordered_insert(list, head->next, word);
-    return head;
-}
-
 elem_ptr remove_elem(elem_ptr head, char *wordInput) {
     elem_ptr temp;
     if (head == NULL) {
@@ -156,7 +150,7 @@ elem_ptr remove_elem(elem_ptr head, char *wordInput) {
     return head;
 }
 
-bool word_exists(elem_ptr head, char *wordInput) {
+bool elem_in_list(elem_ptr head, char *wordInput) {
     for (; head != NULL; head = head->next)
     {
         if (strcmp(head->word, wordInput) == 0)
@@ -165,9 +159,9 @@ bool word_exists(elem_ptr head, char *wordInput) {
     return false;
 }
 
-void visualizzaLista(node_ptr head) {
+void visualizzaLista(elem_ptr head) {
     for (; head != NULL; head = head->next)
-        printf("%s(%d) -> ", head->tableEntry->word, head->tableEntry->valid);
+        printf("%s(%d) -> ", head->word, head->valid);
     printf("NULL\n");
 }
 
@@ -201,53 +195,191 @@ bool readline() {
         return false;
 }
 
-bool validateSample(char *sample, char *word, char *guesses) {
+bool validateSample(char *sample, char *word, char *guesses)
+{
     int i, j;
     bool isValid, found;
     isValid = true;
-    for (i = 0; i < k && isValid == true; i++) // scorre le lettere della word e dei guesses
+    for (i = 0; i < k && isValid == true; i++) // scorre le lettere del sample e della word
     {
         if (guesses[i] == '+') // se la lettera era indovinata...
         {
-            if (sample[i] == word[i]) // ...ed è uguale a quella del sample
+            if (sample[i] == word[i]) // ...ed è uguale a quella che stiamo leggendo
+            {                    
                 sample[i] = '?'; // la usiamo e proseguiamo
+            }
             else
                 isValid = false; // altrimenti invalidiamo subito
         }
-        else if (guesses[i] == '|') // se invece era al posto sbagliato...
+    }
+    for (i = 0; i < k && isValid == true; i++)
+    {
+        if (guesses[i] == '|') // se invece era al posto sbagliato...
         {
             if (sample[i] == word[i])
-                isValid = false;
-            found = false; // la cerco
-            for (j = 0; j < k && found == false; j++)
-                if (sample[j] == word[i] && word[j] != word[i]) // trovata! ma non deve essere stata trovata dove non era permessa
+            {
+                isValid = false; // non deve esserci lì!
+            }
+            else
+            {   
+                found = false;
+                for (j = 0; j < k && found == false; j++) // scorriamo tutto il sample alla ricerca di una posizione dove c'è sta lettera
                 {
-                    found = true;
-                    sample[j] = '?'; // la usiamo
+                    if (sample[j] == word[i] && !((guesses[j] == '/' || guesses[j] == '|') && word[j] == word[i])) // trovata! ma non deve essere stata trovata dove non era permessa
+                    {
+                        found = true;
+                        sample[j] = '?'; // la usiamo
+                    }
                 }
-            if (found == false)
-                isValid = false;
+                if (found == false)
+                    isValid = false;
+            }
         }
-        else // se la lettera era assente dal riferimento...
+    }
+    for (i = 0; i < k && isValid == true; i++)
+    {
+        if (guesses[i] == '/') // se la lettera era sbagliata...
+        {
             for (j = 0; j < k && isValid == true; j++) // ...la cerco
-                if (sample[j] == word[i] && (word[j] != word[i] || guesses[j] != '+')) // trovata! ma non deve essere stata trovata sarà già al posto giusto
+            {
+                if (sample[j] == word[i])
                     isValid = false; // trovata! invalido tutto
+            }
+        }
     }
     return isValid;
 }
 
-void stampa_filtrate(node_ptr simpleList, uint32_t x) {
-    uint32_t xRead;
-    for (xRead = 0; xRead < x; simpleList = simpleList->next)  // scorre le parole già ordinate
-        if (simpleList->tableEntry->valid){  // se è valida
-            xRead++;
-            fprintf(wfileptr, "%s\n", simpleList->tableEntry->word); // va stampata
+/* See https:// www.geeksforgeeks.org/?p=3622 for details of this
+function */
+list_ptr SortedMerge(list_ptr a, list_ptr b)
+{
+    list_ptr result = NULL;
+ 
+    /* Base cases */
+    if (a == NULL)
+        return (b);
+    else if (b == NULL)
+        return (a);
+ 
+    /* Pick either a or b, and recur */
+    if (strcmp(a->ptrToStruct->word, b->ptrToStruct->word) < 0) {
+        result = a;
+        result->next = SortedMerge(a->next, b);
+    }
+    else {
+        result = b;
+        result->next = SortedMerge(a, b->next);
+    }
+    return (result);
+}
+ 
+/* UTILITY FUNCTIONS */
+/* Split the nodes of the given list into front and back halves,
+    and return the two lists using the reference parameters.
+    If the length is odd, the extra node should go in the front list.
+    Uses the fast/slow pointer strategy. */
+void FrontBackSplit(list_ptr source,
+                    list_ptr* frontRef, list_ptr* backRef)
+{
+    list_ptr fast;
+    list_ptr slow;
+    slow = source;
+    fast = source->next;
+ 
+    /* Advance 'fast' two nodes, and advance 'slow' one node */
+    while (fast != NULL) {
+        fast = fast->next;
+        if (fast != NULL) {
+            slow = slow->next;
+            fast = fast->next;
         }
+    }
+ 
+    /* 'slow' is before the midpoint in the list, so split it in two
+    at that point. */
+    *frontRef = source;
+    *backRef = slow->next;
+    slow->next = NULL;
+}
+
+void mergeSort(list_ptr *headRef)
+{
+    list_ptr head = *headRef;
+    list_ptr a;
+    list_ptr b;
+ 
+    /* Base case -- length 0 or 1 */
+    if ((head == NULL) || (head->next == NULL)) {
+        return;
+    }
+ 
+    /* Split head into 'a' and 'b' sublists */
+    FrontBackSplit(head, &a, &b);
+ 
+    /* Recursively sort the sublists */
+    mergeSort(&a);
+    mergeSort(&b);
+ 
+    /* answer = merge the two sorted lists together */
+    *headRef = SortedMerge(a, b);
+}
+
+void stampa_filtrate(elem_ptr *list, uint32_t x, list_ptr *validsList) {
+    uint32_t i, xTmp;
+    elem_ptr tempHead;
+    list_ptr tempListHead, prev;
+    xTmp = 0;
+    if (list_exists){
+        // deletes invalid elements
+        tempListHead = *validsList;
+        prev = NULL;
+        while(prev == NULL) {
+            if (tempListHead->ptrToStruct->valid == false) { // if head is invalid
+                *validsList = tempListHead->next; // change head
+                free(tempListHead); // free old head
+                tempListHead = *validsList;
+            }
+            else {
+                prev = tempListHead;
+                tempListHead = tempListHead->next;
+            }
+        }
+        while(tempListHead != NULL) {
+            if (tempListHead->ptrToStruct->valid == false) { // if generic node is invalid
+                prev->next = tempListHead->next;
+                free(tempListHead);
+                tempListHead = prev->next;
+            }
+            else {
+                prev = tempListHead;
+                tempListHead = tempListHead->next;
+            }
+        }
+    }
+    else{
+        // creates list with valid words
+        list_exists = true;
+        for (i = 0; i < TABLESIZE && xTmp < x; i++) {
+            for (tempHead = list[i]; tempHead != NULL && xTmp < x; tempHead = tempHead->next){
+                if (tempHead->valid){
+                    xTmp++;
+                    *validsList = head_insert_valids_list(*validsList, tempHead);
+                }
+            }
+        }
+        // sorts the list
+        mergeSort(validsList);
+    }
+    // in any case, prints the list
+    for (tempListHead = *validsList; tempListHead != NULL; tempListHead = tempListHead->next){
+        fprintf(wfileptr, "%s\n", tempListHead->ptrToStruct->word);
+    }
 }
 
 int main() {
-    elem_ptr *list = NULL;
-    node_ptr simpleList = NULL;
+    elem_ptr *list;
+    list_ptr validsList = NULL;
     elem_ptr tempHead;
     chars_table vincoli[64];
     int n; // n numero di turni ancora disponibili
@@ -263,7 +395,6 @@ int main() {
     } while (buffer[0] != '+');
     totalWords--;
     for (TABLESIZE = 1; TABLESIZE <= totalWords; TABLESIZE *= 2);
-    TABLESIZE *= 4;
     rewind(fileptr);
 
     list = (elem_ptr *)calloc(TABLESIZE, sizeof(elem_ptr)); // inizializza l'hashtable
@@ -273,7 +404,7 @@ int main() {
 
     char riferimento[k + 1], temp[k + 1], output[k + 1], guessedChars[k + 1]; // crea vari array di supporto
 
-    x = 0; // popola l'hashtable e l'array di parole ammissibili
+    x = 0; // popola la hashtable di parole ammissibili
     exit = false;
     while (exit == false)
     {
@@ -282,7 +413,6 @@ int main() {
         {
             hash = multHash(buffer);
             list[hash] = head_insert(list[hash], buffer, true);
-            simpleList = ordered_insert(list, simpleList, buffer);
             x++;
         }
         else
@@ -290,6 +420,7 @@ int main() {
     }
 
     // inizia la partita
+    list_exists = false; // la lista non esiste
     for (i = 0; i < k; i++) // azzera guessedChars
         guessedChars[i] = '?';
     for (i = 0; i < 64; i++) // azzera i vincoli
@@ -313,20 +444,23 @@ int main() {
         {
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0)
-                stampa_filtrate(simpleList, x);
+            {
+                stampa_filtrate(list, x, &validsList);
+            }
 
             // popola ulteriormente la lista di parole ammissibili
             else if (strcmp(buffer, "+inserisci_inizio") == 0)
             {
                 exit = false;
-                while (exit == false) {
+                while (exit == false)
+                {
                     readline();
-                    if (buffer[0] != '+') { // aggiunge parola all'hashtable e all'array
+                    if (buffer[0] != '+')
+                    {
                         hash = multHash(buffer);
                         list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
-                        simpleList = ordered_insert(list, simpleList, buffer);
                         totalWords++;
-                        if (totalWords * 2 > TABLESIZE)
+                        if (totalWords > TABLESIZE * 2)
                             list = rehash_and_double(list);
                     }
                     else
@@ -346,6 +480,11 @@ int main() {
                         tempHead->valid = true;
                         x++;
                     }
+                }
+                if (list_exists){
+                    delete_list(validsList);
+                    validsList = NULL;
+                    list_exists = false; // la lista non esiste
                 }
                 for (i = 0; i < k; i++) // azzera guessedChars
                     guessedChars[i] = '?';
@@ -377,7 +516,7 @@ int main() {
         {
             // esegue solo se la parola è ammissibile e la confronta con r: + ok, | ok wrong pos, / no.
             hash = multHash(buffer);
-            if (word_exists(list[hash], buffer))
+            if (elem_in_list(list[hash], buffer))
             {
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
                 for (i = 0; i < k; i++) // scorro per cercare lettere indovinate

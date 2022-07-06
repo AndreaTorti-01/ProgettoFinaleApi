@@ -49,8 +49,7 @@ uint32_t multHash(char *key) {
     return hash % TABLESIZE;
 }
 
-/* helper routine for swapping */
-void swapStrings(char **a, char **b) {
+void scambia_str(char **a, char **b) {
     char *temp;
 
     temp = *a;
@@ -58,75 +57,48 @@ void swapStrings(char **a, char **b) {
     *b = temp;
 }
 
-/* call with k=0 */
+/* chiama con k=0 e n numero di parole*/
 void radixSort(int n, char **a, int k) {
     int i;
-    int count[UCHAR_MAX+1];  /* number of strings with given character in position k */
-    int mode;                /* most common position-k character */
-    char **bucket[UCHAR_MAX+1]; /* position of character block in output */
-    char **top[UCHAR_MAX+1];    /* first unused index in this character block */
+    uint32_t count[UCHAR_MAX+1];
+    int mode;
+    char **bin[UCHAR_MAX+1];
+    char **lim[UCHAR_MAX+1];
 
-    /* loop implements tail recursion on most common character */
     while(n > 1) {
-
-        /* count occurrences of each character */
         memset(count, 0, sizeof(int)*(UCHAR_MAX+1));
-
         for(i = 0; i < n; i++) {
             count[(unsigned char) a[i][k]]++;
         }
-
-        /* find the most common nonzero character */
-        /* we will handle this specially */
         mode = 1;
         for(i = 2; i < UCHAR_MAX+1; i++) {
             if(count[i] > count[mode]) {
                 mode = i;
             }
         }
-
         if(count[mode] < n) {
-
-            /* generate bucket and top fields */
-            bucket[0] = top[0] = a;
+            bin[0] = lim[0] = a;
             for(i = 1; i < UCHAR_MAX+1; i++) {
-                top[i] = bucket[i] = bucket[i-1] + count[i-1];
+                lim[i] = bin[i] = bin[i-1] + count[i-1];
             }
-
-            /* reorder elements by k-th character */
-            /* this is similar to dutch flag algorithm */
-            /* we start at bottom character and swap values out until everything is in place */
-            /* invariant is that for all i, bucket[i] <= j < top[i] implies a[j][k] == i */
             for(i = 0; i < UCHAR_MAX+1; i++) {
-                while(top[i] < bucket[i] + count[i]) {
-                    if((unsigned char) top[i][0][k] == i) {
-                        /* leave it in place, advance bucket */
-                        top[i]++;
+                while(lim[i] < bin[i] + count[i]) {
+                    if((unsigned char) lim[i][0][k] == i) {
+                        lim[i]++;
                     } else {
-                        /* swap with top of appropriate block */
-                        swapStrings(top[i], top[(unsigned char) top[i][0][k]]++);
+                        scambia_str(lim[i], lim[(unsigned char) lim[i][0][k]]++);
                     }
                 }
             }
-
-            /* we have now reordered everything */
-            /* recurse on all but 0 and mode */
             for(i = 1; i < UCHAR_MAX+1; i++) {
                 if(i != mode) {
-                    radixSort(count[i], bucket[i], k+1);
+                    radixSort(count[i], bin[i], k+1);
                 }
             }
-
-            /* tail recurse on mode */
             n = count[mode];
-            a = bucket[mode];
-            k++;
-
-        } else {
-
-            /* tail recurse on whole pile */
-            k++;
+            a = bin[mode];
         }
+        k++;
     }
 }
 
@@ -305,7 +277,7 @@ bool validateSample(char *sample, char *word, char *guesses) {
 void stampa_filtrate(elem_ptr *list,char **array, uint32_t x, uint32_t totalWords) {
     uint32_t xRead, i;
     if (ordered == false){
-        radixSort(totalWords-1, array, 0);
+        radixSort(totalWords, array, 0);
         ordered = true;
     }
     for (xRead = 0, i = 0; xRead < x; i++) {  // scorre le parole già ordinate
@@ -324,15 +296,15 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = fopen("opentestcases/upto18_2.txt", "r");
+    wfileptr = fopen("opentestcases/upto18_2.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
         totalWords++;
         readline();
     } while (buffer[0] != '+');
-    totalWords--;
+    totalWords-=2;
     for (TABLESIZE = 1; TABLESIZE <= totalWords; TABLESIZE *= 2);
     TABLESIZE *= 4;
     rewind(fileptr);
@@ -396,7 +368,7 @@ int main() {
                     if (buffer[0] != '+') { // aggiunge parola all'hashtable e all'array
                         hash = multHash(buffer);
                         list[hash] = head_insert_check(list[hash], buffer, guessedChars, vincoli, &x);
-                        array = append_word(array, buffer, totalWords-1);
+                        array = append_word(array, buffer, totalWords);
                         totalWords++;
                         if (totalWords * 2 > TABLESIZE)
                             list = rehash_and_double(list);
@@ -517,6 +489,5 @@ int main() {
                 fprintf(wfileptr, "not_exists\n");
         }
     }
-
     return 0;
 }

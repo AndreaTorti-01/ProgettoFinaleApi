@@ -313,8 +313,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
+    fileptr = fopen("opentestcases/upto18_2.txt", "r");
+    wfileptr = fopen("opentestcases/upto18_2.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
@@ -506,6 +506,5 @@ int main() {
                 fprintf(wfileptr, "not_exists\n");
         }
     }
-
     return 0;
 }
