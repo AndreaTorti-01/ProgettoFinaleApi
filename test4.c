@@ -1,4 +1,4 @@
-// mergesort everytime but optimized
+// 1: hashtable, 2: array statico, con mergesort
 
 #include <stdio.h>
 #include <stdlib.h>

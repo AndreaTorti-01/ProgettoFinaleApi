@@ -1,4 +1,4 @@
-// ordered insert into list of pointers
+// 1: hashtable, 2: lista, con inserimento in ordine
 
 #include <stdio.h>
 #include <stdlib.h>

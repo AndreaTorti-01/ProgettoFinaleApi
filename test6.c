@@ -1,4 +1,4 @@
-// quicksort only when useful
+// 1: hashtable, 2: lista, con quicksort
 
 #include <stdio.h>
 #include <stdlib.h>
