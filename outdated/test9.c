@@ -10,7 +10,7 @@
 #define true	(uint8_t)1
 #define false	(uint8_t)0
 #define MAGIC_NUMBER 7919
-#define MAXWORDLEN 128
+#define MAXWORDLEN 512
 
 uint32_t TABLESIZE = 0; // uint32_t max 4294967296
 int k;
@@ -317,8 +317,8 @@ int main() {
     int n; // n numero di turni ancora disponibili
     uint32_t hash, i, j, x, totalWords; // x numero parole valide, totalWords numero parole totali
     bool exit, found;
-    fileptr = fopen("opentestcases/upto18.txt", "r");
-    wfileptr = fopen("opentestcases/upto18.myoutput.txt", "w");
+    fileptr = fopen("heavy_long/input_HL001.txt", "r");
+    wfileptr = fopen("heavy_long/input_HL001.myoutput.txt", "w");
 
     totalWords = 0; // questo blocco conta le parole totali iniziali e imposta tablesize
     do {
