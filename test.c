@@ -1,18 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
 #define false	(uint8_t)0
-#define MAGIC_NUMBER 7919
-#define MAXWORDLEN 32
 
-int k;
-char buffer[MAXWORDLEN];
-FILE *fileptr;
-FILE *wfileptr;
 
 struct node{
     char *chunk;
@@ -20,22 +13,6 @@ struct node{
     struct node* down;
 };
 typedef struct node* node_ptr;
-
-uint8_t map(char c){
-    if (c == '-') return (c - 45);
-    else if (c >= '0' && c <= '9') return (c - 47);
-    else if (c >= 'A' && c <= 'Z') return (c - 53);
-    else if (c >= 'a' && c <= 'z') return (c - 59);
-    else return (c - 48);
-}
-
-bool readline(){
-    if (fgets(buffer, MAXWORDLEN, fileptr)){
-        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
-        return true;
-    }
-    else return false;
-}
 
 void slice(char *str, char *result, size_t start, size_t end){
     strncpy(result, str + start, end - start);
@@ -105,29 +82,23 @@ node_ptr trie_insert(char* word, node_ptr root){
     return root;
 }
 
-void print_trie(node_ptr root){
-    
-}
-
 int main(){
     node_ptr root = NULL;
-    bool exit;
-    fileptr = fopen("opentestcases/test3.txt", "r");
-    wfileptr = fopen("opentestcases/test3.myoutput.txt", "w");
-
-    readline();
-    k = (int)strtol(buffer, (char **)NULL, 10); // imposta k
-
-    exit = false;
-    while (!exit){
-        readline();
-        if (buffer[0] != '+'){
-            root = trie_insert(buffer, root);
-        }
-        else if (strcmp(buffer, "+inserisci_inizio") != 0 && strcmp(buffer, "+inserisci_fine") != 0)
-            exit = true;
-    }
-
+    char string1[] = "ciao";
+    char string2[] = "capa";
+    char string3[] = "caro";
+    char string4[] = "rapa";
+    char init[] = "\0\0\0\0";
+    root = trie_insert(string1, root);
+    root = trie_insert(string2, root);
+    root = trie_insert(string3, root);
+    root = trie_insert(string4, root);
+    printf("%s\n", root->chunk);
+    printf("%s\n", root->down->chunk);
+    printf("%s\n", root->down->right->chunk);
+    printf("%s\n", root->down->right->down->chunk);
+    printf("%s\n", root->down->right->down->right->chunk);
+    printf("%s\n", root->right->chunk);
 
     return 0;
 }
