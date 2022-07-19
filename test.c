@@ -48,7 +48,8 @@ node_ptr trie_insert(char* word, node_ptr root){
     int nMatch;
 
     while(1){
-        nMatch = match_until(temp->chunk, word);
+        if (temp!= NULL) nMatch = match_until(temp->chunk, word);
+        else nMatch = 0;
         
         if (nMatch > 0){ // deve inserire in temp->down wordRemainder e trieRemainder, ovvero le parti che non corrispondono
             wordRemainder = malloc(sizeof(char) * (strlen(word) - nMatch + 1));
@@ -62,40 +63,48 @@ node_ptr trie_insert(char* word, node_ptr root){
             temp->down = malloc(sizeof(struct node));  // inserisce il pezzo rimasto sotto
             temp->down->down = prev;
             temp->down->chunk = trieRemainder;
-            temp->down->right = malloc(sizeof(struct node));
-            temp->down->right->down = temp->down->right->right = NULL;
-            temp->down->right->chunk = wordRemainder;
+            temp->down = trie_insert(wordRemainder, temp->down);
+            free(wordRemainder);
             return root;
         }
         else if (nMatch == -1){ // se invece corrisponde tutto dobbiamo solo inserire il wordRemainder al livello sotto
             wordRemainder = malloc(sizeof(char) * (strlen(word) - strlen(temp->chunk) + 1));
             slice(word, wordRemainder, strlen(temp->chunk), strlen(word)+1);
-            trie_insert(wordRemainder, temp->down);
+            temp->down = trie_insert(wordRemainder, temp->down);
             free(wordRemainder);
             return root;
             
         }
         else{ // se non riesce a inserire
-            prev = temp;
-            temp = temp->right; // scorre a destra
-            if (temp->chunk[0] > word[0]){ // se è il posto giusto dove inserire
-                temp = malloc(sizeof(struct node));
-                temp->right = prev->right;
-                temp->down = NULL;
-                temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
-                strcpy(temp->chunk, word);
-                prev->right = temp;
-                return root;
-            }
-            else if (temp == NULL){ // se è alla fine
+            if (temp == NULL){ // magari è la fine della lista
                 temp = malloc(sizeof(struct node));
                 temp->right = temp->down = NULL;
+                prev->right = temp;
                 temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
                 strcpy(temp->chunk, word);
-                prev->right = temp;
                 return root;
             }
-            
+            if (temp->chunk[0] > word[0]){ // oppure sto inserendo prima
+                if (prev == NULL) { // magari all'inizio
+                    prev = malloc(sizeof(struct node));
+                    prev->right = temp;
+                    prev->down = NULL;
+                    prev->chunk = malloc(sizeof(char) * (strlen(word) + 1));
+                    strcpy(prev->chunk, word);
+                    return prev;
+                }
+                else{ // oppure in mezzo
+                    temp = malloc(sizeof(struct node));
+                    temp->right = prev->right;
+                    prev->right = temp;
+                    temp->down = NULL;
+                    temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
+                    strcpy(temp->chunk, word);
+                    return root;
+                }
+            }
+            prev = temp;
+            temp = temp->right; // scorre a destra
         }
     }
 }
@@ -119,7 +128,7 @@ void print_trie(char* passed, int index, node_ptr root){
 int main(){
     node_ptr root = NULL;
     int i;
-    char strings[5][5] = {"crac", "rato", "crer", "raro", "clir"};
+    char strings[4][5] = {"ciao", "capa", "caro", "rapa"};
     char init[] = "\0\0\0\0";
     for (i=0; i<(sizeof(strings)/sizeof(strings[0])); i++)
         root = trie_insert(strings[i], root);
