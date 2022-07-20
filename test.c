@@ -1,16 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #define bool	_Bool
 #define true	(uint8_t)1
 #define false	(uint8_t)0
 
+int k = 4;
 
 struct node{
-    char *chunk;
     struct node* right;
     struct node* down;
+    char *chunk;
 };
 typedef struct node* node_ptr;
 
@@ -125,6 +127,26 @@ void print_trie(char* passed, int index, node_ptr root){
     }
 }
 
+// changes word!
+bool is_in_trie(char* word, node_ptr root){
+    int nMatch;
+    char tempWord[k + 1];
+    while (root != NULL){ // scorre a destra fino alla fine
+        nMatch = match_until(root->chunk, word);
+        if (nMatch == -1){
+            if (strlen(root->chunk) == strlen(word) && root->down == NULL) return true;
+            slice(word, tempWord, strlen(root->chunk), strlen(word) + 1);
+            return is_in_trie(tempWord, root->down);
+        }
+        else if (nMatch > 0){
+            slice(word, tempWord, nMatch, strlen(word) + 1);
+            return is_in_trie(tempWord, root->down);
+        }
+        root = root->right;
+    }
+    return false;
+}
+
 int main(){
     node_ptr root = NULL;
     int i;
@@ -133,6 +155,12 @@ int main(){
     for (i=0; i<(sizeof(strings)/sizeof(strings[0])); i++)
         root = trie_insert(strings[i], root);
     print_trie(init, 0, root);
+    printf("%d\n", (int)is_in_trie("ciao", root));
+    printf("%d\n", (int)is_in_trie("cia", root));
+    printf("%d\n", (int)is_in_trie("crac", root));
+    printf("%d\n", (int)is_in_trie("caro", root));
+    printf("%d\n", (int)is_in_trie("rapa", root));
+    printf("%d\n", (int)is_in_trie("c", root));
 
     return 0;
 }

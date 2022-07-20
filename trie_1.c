@@ -190,13 +190,6 @@ int main(){
             exit = true;
     }
 
-    print_trie(init, 0, root);
-    printf("%d\n", x);
-    int num = 0;
-    items_in_trie(&num, root);
-    printf("%d\n", num);
-
-    /*
     for (i = 0; i < 64; i++) vincoli[i].bannedInPos = (bool *)malloc(sizeof(bool) * k); // alloca lo spazio per il vincolo bannedinpos
 
     newGameReset(&x, &n, guessedChars, riferimento, vincoli); // inizia la prima partita
@@ -239,7 +232,6 @@ int main(){
         else if (n > 0)
         {
             // esegue solo se la parola è ammissibile e la confronta con r: + ok, | ok wrong pos, / no.
-            hash = multHash(buffer);
             if (elem_in_list(list[hash], buffer))
             {
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
@@ -290,7 +282,6 @@ int main(){
                 fprintf(wfileptr, "not_exists\n");
         }
     }
-    */
 
     return 0;
 }
