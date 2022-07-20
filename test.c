@@ -48,7 +48,6 @@ node_ptr trie_insert(char* word, node_ptr root){
 
     node_ptr prev = NULL;
     node_ptr temp = root;
-    char *wordRemainder, *trieRemainder;
     int nMatch;
 
     while(1){
@@ -56,8 +55,8 @@ node_ptr trie_insert(char* word, node_ptr root){
         else nMatch = 0;
         
         if (nMatch > 0){ // deve inserire in temp->down wordRemainder e trieRemainder, ovvero le parti che non corrispondono
-            wordRemainder = malloc(sizeof(char) * (strlen(word) - nMatch + 1));
-            trieRemainder = malloc(sizeof(char) * (strlen(temp->chunk) - nMatch + 1));
+            char wordRemainder[strlen(word) - nMatch + 1];
+            char* trieRemainder = malloc(sizeof(char) * (strlen(temp->chunk) - nMatch + 1));
             slice(word, wordRemainder, nMatch, strlen(word)+1); // mette in wordRemainder i caratteri di word che non corrispondevano
             slice(temp->chunk, trieRemainder, nMatch, strlen(temp->chunk)+1); // mette in trieRemainder i caratteri di chunk che non corrispondevano
 
@@ -69,14 +68,12 @@ node_ptr trie_insert(char* word, node_ptr root){
             temp->down->valid = true;
             temp->down->chunk = trieRemainder;
             temp->down = trie_insert(wordRemainder, temp->down); // ed ora inserisce il remainder della word nel livello sotto
-            free(wordRemainder);
             return root;
         }
         else if (nMatch == -1){ // se invece corrisponde tutto dobbiamo solo inserire il wordRemainder al livello sotto
-            wordRemainder = malloc(sizeof(char) * (strlen(word) - strlen(temp->chunk) + 1));
+            char wordRemainder[strlen(word) - strlen(temp->chunk) + 1];
             slice(word, wordRemainder, strlen(temp->chunk), strlen(word)+1);
             temp->down = trie_insert(wordRemainder, temp->down);
-            free(wordRemainder);
             return root;
             
         }
@@ -125,15 +122,16 @@ void print_trie(char* passed, int index, node_ptr root){
     }
     else{ // se sono in mezzo
         if (root->down->valid){
-            char temp[k + 1];
+            char temp[strlen(passed) + 1];
+            cut_end(passed, index);
             strcpy(temp, passed);
-            cut_end(temp, index);
             strcat(temp, root->chunk);
             index += strlen(root->chunk);
             print_trie(temp, index, root->down);
         }
-        if (root->right != NULL) 
+        if (root->right != NULL){
             if (root->right->valid) print_trie(passed, index, root->right);
+        }
     }
 }
 
