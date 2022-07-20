@@ -13,6 +13,7 @@ struct node{
     struct node* right;
     struct node* down;
     char *chunk;
+    bool valid;
 };
 typedef struct node* node_ptr;
 
@@ -40,6 +41,7 @@ node_ptr trie_insert(char* word, node_ptr root){
         root = malloc(sizeof(struct node));
         root->chunk = malloc(sizeof(char) * (strlen(word) + 1));
         root->down = root->right = NULL;
+        root->valid = true;
         strcpy(root->chunk, word);
         return root;
     }
@@ -64,8 +66,9 @@ node_ptr trie_insert(char* word, node_ptr root){
             prev = temp->down;
             temp->down = malloc(sizeof(struct node));  // inserisce il pezzo rimasto sotto
             temp->down->down = prev;
+            temp->down->valid = true;
             temp->down->chunk = trieRemainder;
-            temp->down = trie_insert(wordRemainder, temp->down);
+            temp->down = trie_insert(wordRemainder, temp->down); // ed ora inserisce il remainder della word nel livello sotto
             free(wordRemainder);
             return root;
         }
@@ -81,16 +84,18 @@ node_ptr trie_insert(char* word, node_ptr root){
             if (temp == NULL){ // magari è la fine della lista
                 temp = malloc(sizeof(struct node));
                 temp->right = temp->down = NULL;
+                temp->valid = true;
                 prev->right = temp;
                 temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
                 strcpy(temp->chunk, word);
                 return root;
             }
-            if (temp->chunk[0] > word[0]){ // oppure sto inserendo prima
+            if (temp->chunk[0] > word[0]){ // oppure sto inserendo prima della fine
                 if (prev == NULL) { // magari all'inizio
                     prev = malloc(sizeof(struct node));
                     prev->right = temp;
                     prev->down = NULL;
+                    prev->valid = true;
                     prev->chunk = malloc(sizeof(char) * (strlen(word) + 1));
                     strcpy(prev->chunk, word);
                     return prev;
@@ -100,6 +105,7 @@ node_ptr trie_insert(char* word, node_ptr root){
                     temp->right = prev->right;
                     prev->right = temp;
                     temp->down = NULL;
+                    temp->valid = true;
                     temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
                     strcpy(temp->chunk, word);
                     return root;
@@ -113,21 +119,33 @@ node_ptr trie_insert(char* word, node_ptr root){
 
 void print_trie(char* passed, int index, node_ptr root){
     if (root->down == NULL){ // se sono in una foglia
-        printf("%s%s\n", passed, root->chunk);
+        if (root->valid) printf("%s%s\n", passed, root->chunk);
         if (root->right != NULL) 
-            print_trie(passed, index, root->right);
+            if (root->right->valid) print_trie(passed, index, root->right);
     }
     else{ // se sono in mezzo
+        if (root->down->valid){
+            char temp[k + 1];
+            strcpy(temp, passed);
+            cut_end(temp, index);
+            strcat(temp, root->chunk);
+            index += strlen(root->chunk);
+            print_trie(temp, index, root->down);
+        }
         if (root->right != NULL) 
-            print_trie(passed, index, root->right);
-        cut_end(passed, index);
-        passed = strcat(passed, root->chunk);
-        index += strlen(root->chunk);
-        print_trie(passed, index, root->down);
+            if (root->right->valid) print_trie(passed, index, root->right);
     }
 }
 
-// changes word!
+void items_in_trie(int *num, node_ptr root){
+    if (root->right != NULL)
+        items_in_trie(num, root->right);
+    if (root->down != NULL)
+        items_in_trie(num, root->down);
+    if (root->down == NULL)
+        (*num)++;
+}
+
 bool is_in_trie(char* word, node_ptr root){
     int nMatch;
     char tempWord[k + 1];
@@ -147,20 +165,27 @@ bool is_in_trie(char* word, node_ptr root){
     return false;
 }
 
+void revalidate_trie(node_ptr root){
+    if (root->down == NULL){ // se sono in una foglia
+        root->valid = true;
+        if (root->right != NULL) 
+            revalidate_trie(root->right);
+    }
+    else{ // se sono in mezzo
+        if (root->right != NULL) 
+            revalidate_trie(root->right);
+        revalidate_trie(root->down);
+    }
+}
+
 int main(){
     node_ptr root = NULL;
     int i;
-    char strings[4][5] = {"ciao", "capa", "caro", "rapa"};
+    char strings[8][5] = {"ciao", "capa", "caro", "capo", "rapa", "raro", "rate", "riuk"};
     char init[] = "\0\0\0\0";
     for (i=0; i<(sizeof(strings)/sizeof(strings[0])); i++)
         root = trie_insert(strings[i], root);
     print_trie(init, 0, root);
-    printf("%d\n", (int)is_in_trie("ciao", root));
-    printf("%d\n", (int)is_in_trie("cia", root));
-    printf("%d\n", (int)is_in_trie("crac", root));
-    printf("%d\n", (int)is_in_trie("caro", root));
-    printf("%d\n", (int)is_in_trie("rapa", root));
-    printf("%d\n", (int)is_in_trie("c", root));
 
     return 0;
 }
