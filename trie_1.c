@@ -37,11 +37,17 @@ uint8_t map(char c){
 }
 
 bool readline(){
-    if (fgets(buffer, MAXWORDLEN, fileptr)){
-        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
-        return true;
+    char ch;
+    int i=0;
+    buffer[i] = fgetc(fileptr);
+    while (buffer[i] != EOF){
+        i++;
+        if ((buffer[i] = fgetc(fileptr)) == '\n'){
+            buffer[i] = '\0';
+            return true;
+        }
     }
-    else return false;
+    return false;
 }
 
 void cut_end(char* word, int end){
@@ -63,15 +69,6 @@ int match_until(char* trieChunk, char* inputWord){
 }
 
 node_ptr trie_insert(char* word, node_ptr root){
-    if (root == NULL){
-        root = malloc(sizeof(struct node));
-        root->chunk = malloc(sizeof(char) * (strlen(word) + 1));
-        root->down = root->right = NULL;
-        root->valid = true;
-        strcpy(root->chunk, word);
-        return root;
-    }
-
     node_ptr prev = NULL;
     node_ptr temp = root;
     int nMatch;
@@ -91,7 +88,8 @@ node_ptr trie_insert(char* word, node_ptr root){
             prev = temp->down;
             temp->down = malloc(sizeof(struct node));  // inserisce il pezzo rimasto sotto
             temp->down->down = prev;
-            temp->down->valid = true;
+            temp->down->valid = temp->valid; // eredita la validità dal pezzo sopra
+            temp->valid = true; // e il pezzo sopra è valido
             temp->down->chunk = trieRemainder;
             temp->down = trie_insert(wordRemainder, temp->down); // ed ora inserisce il remainder della word nel livello sotto
             return root;
@@ -108,9 +106,10 @@ node_ptr trie_insert(char* word, node_ptr root){
                 temp = malloc(sizeof(struct node));
                 temp->right = temp->down = NULL;
                 temp->valid = true;
-                prev->right = temp;
+                if (prev != NULL) prev->right = temp; // solo se non è il primo inserimento in assoluto
                 temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
                 strcpy(temp->chunk, word);
+                if (prev == NULL) root = temp; // solo se è il primo inserimento in assoluto
                 return root;
             }
             if (temp->chunk[0] > word[0]){ // oppure sto inserendo prima della fine
@@ -190,7 +189,7 @@ bool is_in_trie(char* word, node_ptr root){
 }
 
 // gioca la parola di buffer, con riferimento temp, stampando il risultato
-void play_round(char* output, char* temp, char* guessedChars, char* buffer, chars_table vincoli[]){
+void play_round(char* output, char* temp, char* guessedChars, char* buffer, chars_table constraints[]){
     int i, j;
     bool found;
     for (i = 0; i < k; i++){ // scorro per cercare lettere indovinate
@@ -199,7 +198,7 @@ void play_round(char* output, char* temp, char* guessedChars, char* buffer, char
             output[i] = '+';
             temp[i] = '?';
             guessedChars[i] = buffer[i];
-            vincoli[map(buffer[i])].minOcc++; // aumento di uno il numero di occorrenze minime di tale lettera
+            constraints[map(buffer[i])].minOcc++; // aumento di uno il numero di occorrenze minime di tale lettera
         }
     }
     for (i = 0; i < k; i++){ // scorro per cercare lettere in posizione sbagliata
@@ -210,16 +209,16 @@ void play_round(char* output, char* temp, char* guessedChars, char* buffer, char
                     found = true;
                     temp[j] = '?';
                     output[i] = '|';
-                    vincoli[map(buffer[i])].minOcc++; // aumento di uno il numero di occorrenze minime di tale lettera
-                    vincoli[map(buffer[i])].bannedInPos[i] = true; // banno il char da quella posizione
+                    constraints[map(buffer[i])].minOcc++; // aumento di uno il numero di occorrenze minime di tale lettera
+                    constraints[map(buffer[i])].bannedInPos[i] = true; // banno il char da quella posizione
                 }
             }
             // e se non l'ho trovata...
-            if (found == false && vincoli[map(buffer[i])].minOcc == 0) // potrei non averla mai trovata
+            if (found == false && constraints[map(buffer[i])].minOcc == 0) // potrei non averla mai trovata
                 for (j = 0; j < k; j++)
-                    vincoli[map(buffer[i])].bannedInPos[j] = true; // la banno ovunque
-            else if (found == false && vincoli[map(buffer[i])].minOcc != 0) // o magari l'ho trovata in precedenza
-                vincoli[map(buffer[i])].Occ = vincoli[map(buffer[i])].minOcc; // allora adesso conosco il numero di occorrenze esatto!
+                    constraints[map(buffer[i])].bannedInPos[j] = true; // la banno ovunque
+            else if (found == false && constraints[map(buffer[i])].minOcc != 0) // o magari l'ho trovata in precedenza
+                constraints[map(buffer[i])].Occ = constraints[map(buffer[i])].minOcc; // allora adesso conosco il numero di occorrenze esatto!
         }
     }
     output[k] = '\0';
@@ -239,8 +238,7 @@ void revalidate_trie(node_ptr root){
     }
 }
 
-void newGameReset (node_ptr root, uint32_t *x, uint32_t *totalWords, int *n, char *guessedChars, char *riferimento, chars_table vincoli[]){
-    
+void newGameReset (node_ptr root, uint32_t *x, uint32_t *totalWords, int *n, char *guessedChars, char *riferimento, chars_table constraints[]){
     // reimposta x al numero di parole
     (*x) = (*totalWords);
 
@@ -256,9 +254,13 @@ void newGameReset (node_ptr root, uint32_t *x, uint32_t *totalWords, int *n, cha
     (*n) = (int)strtol(buffer, (char **)NULL, 10);
 }
 
+void validate_trie(node_ptr root, chars_table constraints[], char *guessedChars, uint32_t *x){
+
+}
+
 int main(){
     node_ptr root = NULL; // radice del trie
-    chars_table vincoli[64]; // tabella dei vincoli per ogni carattere
+    chars_table constraints[64]; // tabella dei vincoli per ogni carattere
     bool exit; // variabili di supporto
     uint32_t i; // variabili di supporto
     uint32_t x; // numero parole valide
@@ -288,10 +290,10 @@ int main(){
     }
 
     // alloca lo spazio per il vincolo bannedinpos
-    for (i = 0; i < 64; i++) vincoli[i].bannedInPos = (bool *)malloc(sizeof(bool) * k);
+    for (i = 0; i < 64; i++) constraints[i].bannedInPos = (bool *)malloc(sizeof(bool) * k);
 
     // inizia la prima partita
-    newGameReset(root, &x, &totalWords, &n, guessedChars, riferimento, vincoli);
+    newGameReset(root, &x, &totalWords, &n, guessedChars, riferimento, constraints);
 
     while (readline()){ // in buffer è contenuta la linea letta
 
@@ -316,11 +318,12 @@ int main(){
                     else
                         exit = true;
                 }
+                validate_trie(root, constraints, guessedChars, &x);
             }
 
             // inizia una nuova partita
             else if (strcmp(buffer, "+nuova_partita") == 0)
-                newGameReset(root, &x, &totalWords, &n, guessedChars, riferimento, vincoli);
+                newGameReset(root, &x, &totalWords, &n, guessedChars, riferimento, constraints);
         }
 
         // se la parola è proprio r e può leggere parole: stampa ok e termina la partita
@@ -334,8 +337,8 @@ int main(){
             // se la parola è ammissibile gioca un round
             if (is_in_trie(buffer, root)){
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
-                play_round(output, temp, guessedChars, buffer, vincoli);
-                //validateAllSamples();
+                play_round(output, temp, guessedChars, buffer, constraints);
+                validate_trie(root, constraints, guessedChars, &x);
                 n--; // ho giocato un turno
                 if (n == 0) fprintf(wfileptr, "ko\n"); // se non ho più turni a disposizione stampo ko
             }
