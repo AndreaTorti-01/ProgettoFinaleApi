@@ -1,2 +1,3 @@
-gcc -Wall -Werror -O2 -g3 -o $1 $1.c
-time ./$1
+. scripts.config
+gcc -Wall -Werror -O2 -o $program $program.c
+/usr/bin/time -v ./$program < tests/$file.txt > tests/$file.myoutput.txt

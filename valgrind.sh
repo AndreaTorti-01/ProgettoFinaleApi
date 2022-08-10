@@ -1,2 +1,3 @@
-gcc -g -o $1 $1.c
-valgrind --tool=callgrind ./$1
+. scripts.config
+bash debug_compile.sh
+valgrind --leak-check=full --track-origins=yes --show-leak-kinds=all ./$program < tests/$file.txt > tests/$file.myoutput.txt

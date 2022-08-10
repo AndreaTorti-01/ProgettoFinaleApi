@@ -4,15 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-#define bool	_Bool
-#define true	(uint8_t)1
-#define false	(uint8_t)0
 #define MAXWORDLEN 256
-#define wordlen_t uint8_t
-#define nwords_t uint32_t
 
-struct node{
+struct __attribute__((__packed__)) node{
     struct node* right;
     struct node* down;
     char *chunk;
@@ -20,23 +16,21 @@ struct node{
 };
 typedef struct node* node_ptr;
 
-struct chars{
+struct __attribute__((__packed__)) chars{
     bool* bannedInPos;
-    wordlen_t minOcc;
-    wordlen_t Occ;
+    uint8_t minOcc;
+    uint8_t Occ;
 };
 
-wordlen_t k; // lunghezza parole
-nwords_t x; // numero parole valide
-nwords_t totalWords; // numero parole totali
-nwords_t n; // numero turni a disposizione
+uint8_t k; // lunghezza parole
+uint32_t x; // numero parole valide
+uint32_t totalWords; // numero parole totali
+uint32_t n; // numero turni a disposizione
 struct chars constraints[64]; // tabella dei vincoli per ogni carattere
 char buffer[MAXWORDLEN];
-FILE *fileptr;
-FILE *wfileptr;
 char *guessedChars, *riferimento;
 
-wordlen_t map(char c){
+uint8_t map(char c){
     if (c == '-') return (c - 45);
     else if (c >= '0' && c <= '9') return (c - 47);
     else if (c >= 'A' && c <= 'Z') return (c - 54);
@@ -45,19 +39,15 @@ wordlen_t map(char c){
 }
 
 bool readline(){
-    wordlen_t i = 0;
-    buffer[i] = fgetc(fileptr);
-    while (buffer[i] != EOF){
-        i++;
-        if ((buffer[i] = fgetc(fileptr)) == '\n'){
-            buffer[i] = '\0';
-            return true;
-        }
+    if (fgets(buffer, 256, stdin)) {
+        buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
+        return true;
     }
-    return false;
+    else
+        return false;
 }
 
-void cut_end(char* word, wordlen_t end){
+void cut_end(char* word, uint8_t end){
     for (;end < strlen(word); end++)
         word[end] = '\0';
 }
@@ -146,9 +136,9 @@ node_ptr trie_insert(char* word, node_ptr root){
     }
 }
 
-void print_trie(char* passed, wordlen_t index, node_ptr root){
+void print_trie(char* passed, uint8_t index, node_ptr root){
     if (root->down == NULL){ // se sono in una foglia
-        if (root->valid == true) fprintf(wfileptr, "%s%s\n", passed, root->chunk);
+        if (root->valid == true) printf("%s%s\n", passed, root->chunk);
         if (root->right != NULL) print_trie(passed, index, root->right);
     }
     else{ // se sono in mezzo
@@ -186,7 +176,7 @@ bool is_in_trie(char* word, node_ptr root){
 // gioca la parola p, con riferimento r, stampando il risultato
 void play_round(char* r, char* p){
     char output[k + 1];
-    wordlen_t i, j, occs[64];
+    uint8_t i, j, occs[64];
     for (i=0; i<64; i++) occs[i] = 0;
     bool found;
     for (i = 0; i < k; i++){ // scorro per cercare lettere indovinate
@@ -223,36 +213,44 @@ void play_round(char* r, char* p){
     }
     for (i=0; i<64; i++) if (occs[i] > constraints[i].minOcc) constraints[i].minOcc = occs[i];
     output[k] = '\0';
-    fprintf(wfileptr, "%s\n", output);
+    printf("%s\n", output);
 }
 
-void validate_trie(node_ptr root, wordlen_t startIndex, wordlen_t counts[]){
-    wordlen_t temp[64];
-    wordlen_t tempIndex = startIndex;
-    memcpy(temp, counts, sizeof(wordlen_t) * 64);
+void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
+    uint8_t temp[64];
+    uint8_t tempIndex = startIndex;
+    memcpy(temp, counts, sizeof(uint8_t) * 64);
 
     if (root->valid == true){ // se il nodo è ancora valido...
-        wordlen_t i, len = strlen(root->chunk);
-        for (i=0; i<len && root->valid; i++){ // cerco di invalidare il generico nodo
-            counts[map(root->chunk[i])]++;
-            if ((guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
-                (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) || // se il char è bannato da quella posizione
-                (constraints[map(root->chunk[i])].Occ != 0 && counts[map(root->chunk[i])] > constraints[map(root->chunk[i])].Occ)){ // se ho superato il numero di occorrenze esatto
-                root->valid = false;
-            }
-        }
+        uint8_t i, len = strlen(root->chunk);
+
         if (root->valid){ // se è ancora valido
             if (root->down == NULL){ // se sono in una foglia
-                for (i=0; i<64 && root->valid; i++){ // per ogni lettera
-                    if ((constraints[i].Occ != 0 && counts[i] != constraints[i].Occ) || // se non ho il numero esatto di occorrenze
-                        (constraints[i].minOcc != 0 && counts[i] < constraints[i].minOcc)){ // oppure il numero minimo
+                for (i=0; i<len && root->valid; i++){ // per ogni lettera
+                    counts[map(root->chunk[i])]++;
+                    if ( (guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
+                         (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) ) { // se il char è bannato da quella posizione
+                        root->valid = false;
+                    }
+                }
+                for (i=0; i<64 && root->valid; i++){
+                    if( (constraints[i].Occ != 0 && counts[i] != constraints[i].Occ) || // se non ho il numero esatto di occorrenze
+                        (constraints[i].minOcc != 0 && counts[i] < constraints[i].minOcc) ) { // oppure il numero minimo
                         root->valid = false;
                     }
                 }
                 if (root->valid) x++; // se sono arrivato fin qui ho trovato una parola valida
             }
             else{ // se sono in mezzo
-                validate_trie(root->down, startIndex + len, counts); // inizio a validare di sotto
+                for (i=0; i<len && root->valid; i++){ // cerco di invalidare il nodo
+                    counts[map(root->chunk[i])]++;
+                    if ((guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
+                        (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) || // se il char è bannato da quella posizione
+                        (constraints[map(root->chunk[i])].Occ != 0 && counts[map(root->chunk[i])] > constraints[map(root->chunk[i])].Occ)){ // se ho superato il numero di occorrenze esatto
+                        root->valid = false;
+                    }
+                }
+                if (root->valid) validate_trie(root->down, startIndex + len, counts); // inizio a validare di sotto
             }
         }
     }
@@ -269,7 +267,7 @@ void revalidate_trie(node_ptr root){
 }
 
 void newGameReset (node_ptr root){
-    wordlen_t i, j;
+    uint8_t i, j;
 
     // reimposta x al numero di parole
     x = totalWords;
@@ -293,22 +291,19 @@ void newGameReset (node_ptr root){
 
     // imposta n
     readline();
-    n = (nwords_t)strtol(buffer, (char **)NULL, 10);
+    n = (uint32_t)strtol(buffer, (char **)NULL, 10);
 }
 
 int main(){
     node_ptr root = NULL; // radice del trie
-    wordlen_t counts[64]; // numero occorrenze lettera temporaneo (usato in validate_trie)
+    uint8_t counts[64]; // numero occorrenze lettera temporaneo (usato in validate_trie)
 
     bool exit; // variabili di supporto
-    wordlen_t i; // variabili di supporto
-
-    fileptr = fopen("tests/input_HS014.txt", "r");
-    wfileptr = fopen("tests/input_HS014.myoutput.txt", "w");
+    uint8_t i; // variabili di supporto
 
     // imposta k
     readline();
-    k = (wordlen_t)strtol(buffer, (char **)NULL, 10);
+    k = (uint8_t)strtol(buffer, (char **)NULL, 10);
 
     // crea vari array di supporto e alloca gli spazi necessari scoperti
     char temp[k + 1];
@@ -357,9 +352,6 @@ int main(){
                     else
                         exit = true;
                 }
-                for (i=0; i<64; i++) counts[i] = 0;
-                x = 0;
-                validate_trie(root, 0, counts);
             }
 
             // inizia una nuova partita
@@ -369,7 +361,7 @@ int main(){
 
         // se la parola è proprio r e può leggere parole: stampa ok e termina la partita
         else if (n > 0 && strcmp(buffer, riferimento) == 0){
-            fprintf(wfileptr, "ok\n");
+            printf("ok\n");
             n = 0;
         }
 
@@ -382,13 +374,13 @@ int main(){
                 for (i=0; i<64; i++) counts[i] = 0;
                 x = 0;
                 validate_trie(root, 0, counts);
-                fprintf(wfileptr, "%d\n", x);
+                printf("%d\n", x);
                 n--; // ho giocato un turno
-                if (n == 0) fprintf(wfileptr, "ko\n"); // se non ho più turni a disposizione stampo ko
+                if (n == 0) printf("ko\n"); // se non ho più turni a disposizione stampo ko
             }
 
             // se la parola non è ammissibile
-            else fprintf(wfileptr, "not_exists\n");
+            else printf("not_exists\n");
         }
     }
 
