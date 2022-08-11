@@ -6,9 +6,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MAXWORDLEN 256
+#define MAXWORDLEN 128
 
-struct __attribute__((__packed__)) node{
+struct node{
     struct node* right;
     struct node* down;
     char *chunk;
@@ -16,7 +16,7 @@ struct __attribute__((__packed__)) node{
 };
 typedef struct node* node_ptr;
 
-struct __attribute__((__packed__)) chars{
+struct chars{
     bool* bannedInPos;
     uint8_t minOcc;
     uint8_t Occ;
@@ -39,7 +39,7 @@ uint8_t map(char c){
 }
 
 bool readline(){
-    if (fgets(buffer, 256, stdin)) {
+    if (fgets(buffer, MAXWORDLEN, stdin)) {
         buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
         return true;
     }
@@ -296,7 +296,7 @@ void newGameReset (node_ptr root){
 
 int main(){
     node_ptr root = NULL; // radice del trie
-    uint8_t counts[64]; // numero occorrenze lettera temporaneo (usato in validate_trie)
+    uint8_t* counts = (uint8_t*)malloc(sizeof(uint8_t) * 64); // numero occorrenze lettera temporaneo (usato in validate_trie)
 
     bool exit; // variabili di supporto
     uint8_t i; // variabili di supporto
@@ -336,7 +336,7 @@ int main(){
 
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
-                for(i=0; i<k+1; i++) temp[i] = '\0';
+                memset(counts, '\0', k+1);
                 print_trie(temp, 0, root);
             }
 
@@ -352,6 +352,9 @@ int main(){
                     else
                         exit = true;
                 }
+                memset(counts, 0, 64);
+                x = 0;
+                validate_trie(root, 0, counts);
             }
 
             // inizia una nuova partita
@@ -371,7 +374,7 @@ int main(){
             if (is_in_trie(buffer, root)){
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
                 play_round(temp, buffer);
-                for (i=0; i<64; i++) counts[i] = 0;
+                memset(counts, 0, 64);
                 x = 0;
                 validate_trie(root, 0, counts);
                 printf("%d\n", x);
