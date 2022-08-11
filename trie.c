@@ -12,7 +12,6 @@ struct node{
     struct node* right;
     struct node* down;
     char *chunk;
-    bool valid;
 };
 typedef struct node* node_ptr;
 
@@ -47,6 +46,16 @@ bool readline(){
         return false;
 }
 
+bool node_valid(node_ptr root){
+    if (root->chunk[strlen(root->chunk) + 1] != '-') return true;
+    return false;
+}
+
+void node_set(node_ptr root, bool valid){
+    if (valid) root->chunk[strlen(root->chunk) + 1] = '+';
+    else root->chunk[strlen(root->chunk) + 1] = '-';
+}
+
 void cut_end(char* word, uint8_t end){
     for (;end < strlen(word); end++)
         word[end] = '\0';
@@ -71,29 +80,30 @@ node_ptr trie_insert(char* word, node_ptr root){
     int8_t nMatch;
 
     while(1){
-        if (temp!= NULL) nMatch = match_until(temp->chunk, word);
+        if (temp != NULL) nMatch = match_until(temp->chunk, word);
         else nMatch = 0;
         
         if (nMatch > 0){ // deve inserire in temp->down wordRemainder e trieRemainder, ovvero le parti che non corrispondono
             char wordRemainder[strlen(word) - nMatch + 1];
-            char* trieRemainder = malloc(sizeof(char) * (strlen(temp->chunk) - nMatch + 1));
-            slice(word, wordRemainder, nMatch, strlen(word)+1); // mette in wordRemainder i caratteri di word che non corrispondevano
-            slice(temp->chunk, trieRemainder, nMatch, strlen(temp->chunk)+1); // mette in trieRemainder i caratteri di chunk che non corrispondevano
+            char* trieRemainder = malloc(sizeof(char) * (strlen(temp->chunk) - nMatch + 2));
+            slice(word, wordRemainder, nMatch, strlen(word) + 1); // mette in wordRemainder i caratteri di word che non corrispondevano
+            slice(temp->chunk, trieRemainder, nMatch, strlen(temp->chunk) + 2); // mette in trieRemainder i caratteri di chunk che non corrispondevano
 
-            temp->chunk = realloc(temp->chunk, sizeof(char) * (nMatch+1)); // rimpicciolisce la parola già presente nel trie
+            bool tempValid = node_valid(temp);
+            temp->chunk = realloc(temp->chunk, sizeof(char) * (nMatch + 2)); // rimpicciolisce il nodo già presente nel trie
             temp->chunk[nMatch] = '\0';
+            node_set(temp, true); // e lo imposta come valido
             prev = temp->down;
             temp->down = malloc(sizeof(struct node));  // inserisce il pezzo rimasto sotto
             temp->down->down = prev;
-            temp->down->valid = temp->valid; // eredita la validità dal pezzo sopra
-            temp->valid = true; // e il pezzo sopra è valido
             temp->down->chunk = trieRemainder;
+            node_set(temp->down, tempValid); // eredita la validità dal pezzo sopra
             temp->down = trie_insert(wordRemainder, temp->down); // ed ora inserisce il remainder della word nel livello sotto
             return root;
         }
         else if (nMatch == -1){ // se invece corrisponde tutto dobbiamo solo inserire il wordRemainder al livello sotto
             char wordRemainder[strlen(word) - strlen(temp->chunk) + 1];
-            slice(word, wordRemainder, strlen(temp->chunk), strlen(word)+1);
+            slice(word, wordRemainder, strlen(temp->chunk), strlen(word) + 1);
             temp->down = trie_insert(wordRemainder, temp->down);
             return root;
             
@@ -102,10 +112,10 @@ node_ptr trie_insert(char* word, node_ptr root){
             if (temp == NULL){ // magari è la fine della lista
                 temp = malloc(sizeof(struct node));
                 temp->right = temp->down = NULL;
-                temp->valid = true;
                 if (prev != NULL) prev->right = temp; // solo se non è il primo inserimento in assoluto
-                temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
+                temp->chunk = malloc(sizeof(char) * (strlen(word) + 2));
                 strcpy(temp->chunk, word);
+                node_set(temp, true);
                 if (prev == NULL) root = temp; // solo se è il primo inserimento in assoluto
                 return root;
             }
@@ -114,9 +124,9 @@ node_ptr trie_insert(char* word, node_ptr root){
                     prev = malloc(sizeof(struct node));
                     prev->right = temp;
                     prev->down = NULL;
-                    prev->valid = true;
-                    prev->chunk = malloc(sizeof(char) * (strlen(word) + 1));
+                    prev->chunk = malloc(sizeof(char) * (strlen(word) + 2));
                     strcpy(prev->chunk, word);
+                    node_set(prev, true);
                     return prev;
                 }
                 else{ // oppure in mezzo
@@ -124,9 +134,9 @@ node_ptr trie_insert(char* word, node_ptr root){
                     temp->right = prev->right;
                     prev->right = temp;
                     temp->down = NULL;
-                    temp->valid = true;
-                    temp->chunk = malloc(sizeof(char) * (strlen(word) + 1));
+                    temp->chunk = malloc(sizeof(char) * (strlen(word) + 2));
                     strcpy(temp->chunk, word);
+                    node_set(temp, true);
                     return root;
                 }
             }
@@ -138,11 +148,11 @@ node_ptr trie_insert(char* word, node_ptr root){
 
 void print_trie(char* passed, uint8_t index, node_ptr root){
     if (root->down == NULL){ // se sono in una foglia
-        if (root->valid == true) printf("%s%s\n", passed, root->chunk);
+        if (node_valid(root)) printf("%s%s\n", passed, root->chunk);
         if (root->right != NULL) print_trie(passed, index, root->right);
     }
     else{ // se sono in mezzo
-        if (root->valid == true){
+        if (node_valid(root)){
             char temp[strlen(passed) + 1];
             cut_end(passed, index);
             strcpy(temp, passed);
@@ -221,37 +231,34 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
     uint8_t tempIndex = startIndex;
     memcpy(temp, counts, sizeof(uint8_t) * 64);
 
-    if (root->valid == true){ // se il nodo è ancora valido...
+    if (node_valid(root)){ // se il nodo è ancora valido...
         uint8_t i, len = strlen(root->chunk);
-
-        if (root->valid){ // se è ancora valido
-            if (root->down == NULL){ // se sono in una foglia
-                for (i=0; i<len && root->valid; i++){ // per ogni lettera
-                    counts[map(root->chunk[i])]++;
-                    if ( (guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
-                         (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) ) { // se il char è bannato da quella posizione
-                        root->valid = false;
-                    }
+        if (root->down == NULL){ // se sono in una foglia
+            for (i=0; i<len && node_valid(root); i++){ // per ogni lettera
+                counts[map(root->chunk[i])]++;
+                if ( (guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
+                        (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) ) { // se il char è bannato da quella posizione
+                    node_set(root, false);
                 }
-                for (i=0; i<64 && root->valid; i++){
-                    if( (constraints[i].Occ != 0 && counts[i] != constraints[i].Occ) || // se non ho il numero esatto di occorrenze
-                        (constraints[i].minOcc != 0 && counts[i] < constraints[i].minOcc) ) { // oppure il numero minimo
-                        root->valid = false;
-                    }
-                }
-                if (root->valid) x++; // se sono arrivato fin qui ho trovato una parola valida
             }
-            else{ // se sono in mezzo
-                for (i=0; i<len && root->valid; i++){ // cerco di invalidare il nodo
-                    counts[map(root->chunk[i])]++;
-                    if ((guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
-                        (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) || // se il char è bannato da quella posizione
-                        (constraints[map(root->chunk[i])].Occ != 0 && counts[map(root->chunk[i])] > constraints[map(root->chunk[i])].Occ)){ // se ho superato il numero di occorrenze esatto
-                        root->valid = false;
-                    }
+            for (i=0; i<64 && node_valid(root); i++){
+                if( (constraints[i].Occ != 0 && counts[i] != constraints[i].Occ) || // se non ho il numero esatto di occorrenze
+                    (constraints[i].minOcc != 0 && counts[i] < constraints[i].minOcc) ) { // oppure il numero minimo
+                    node_set(root, false);
                 }
-                if (root->valid) validate_trie(root->down, startIndex + len, counts); // inizio a validare di sotto
             }
+            if (node_valid(root)) x++; // se sono arrivato fin qui ho trovato una parola valida
+        }
+        else{ // se sono in mezzo
+            for (i=0; i<len && node_valid(root); i++){ // cerco di invalidare il nodo
+                counts[map(root->chunk[i])]++;
+                if ((guessedChars[i+startIndex] != '?' && root->chunk[i] != guessedChars[i+startIndex]) || // se il char è in una posizione indovinata e non è quello corretto
+                    (constraints[map(root->chunk[i])].bannedInPos[i+startIndex] == true) || // se il char è bannato da quella posizione
+                    (constraints[map(root->chunk[i])].Occ != 0 && counts[map(root->chunk[i])] > constraints[map(root->chunk[i])].Occ)){ // se ho superato il numero di occorrenze esatto
+                    node_set(root, false);
+                }
+            }
+            if (node_valid(root)) validate_trie(root->down, startIndex + len, counts); // inizio a validare di sotto
         }
     }
 
@@ -261,7 +268,7 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
 }
 
 void revalidate_trie(node_ptr root){
-    root->valid = true;
+    node_set(root, true);
     if (root->right != NULL) revalidate_trie(root->right);
     if (root->down != NULL) revalidate_trie(root->down);
 }
@@ -336,7 +343,7 @@ int main(){
 
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
-                memset(counts, '\0', k+1);
+                memset(temp, '\0', k+1);
                 print_trie(temp, 0, root);
             }
 
