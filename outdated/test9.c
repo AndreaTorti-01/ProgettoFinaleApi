@@ -32,12 +32,12 @@ typedef struct chars {
     int Occ;
 } chars_table;
 
-uint8_t map(char c) {
+uint8_t map(char c){
     if (c == '-') return (c - 45);
     else if (c >= '0' && c <= '9') return (c - 47);
-    else if (c >= 'A' && c <= 'Z') return (c - 53);
-    else if (c >= 'a' && c <= 'z') return (c - 59);
-    else return (c - 48);
+    else if (c >= 'A' && c <= 'Z') return (c - 54);
+    else if (c == '_') return (c - 58);
+    else return (c - 59);
 }
 
 uint32_t multHash(char *key) {
