@@ -17,8 +17,7 @@ typedef struct node* node_ptr;
 
 struct chars{
     bool* bannedInPos;
-    uint8_t minOcc;
-    uint8_t Occ;
+    int8_t occ; // + se min, - se esatte
 };
 
 uint8_t k; // lunghezza parole
@@ -210,11 +209,11 @@ void play_round(char* r, char* p){
                 if (occs[tempMap] == 0) // potrei non averla mai trovata
                     for (j = 0; j < k; j++) constraints[tempMap].bannedInPos[j] = true; // la banno ovunque
                 else // o magari l'ho trovata in precedenza
-                    constraints[tempMap].Occ = occs[tempMap]; // allora adesso conosco il numero di occorrenze esatto!
+                    constraints[tempMap].occ = -occs[tempMap]; // allora adesso conosco il numero di occorrenze esatto!
             }
         }
     }
-    for (i=0; i<64; i++) if (occs[i] > constraints[i].minOcc) constraints[i].minOcc = occs[i];
+    for (i=0; i<64; i++) if (occs[i] != 0 && constraints[i].occ >= 0 && occs[i] > constraints[i].occ) constraints[i].occ = occs[i];
     output[k] = '\0';
     printf("%s\n", output);
 }
@@ -237,8 +236,8 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
                 }
             }
             for (i=0; i<64 && root->chunk[0]; i++){
-                if ((constraints[i].Occ != 0 && counts[i] != constraints[i].Occ) || // se non ho il numero esatto di occorrenze
-                    (constraints[i].minOcc != 0 && counts[i] < constraints[i].minOcc)){ // oppure il numero minimo
+                if ((constraints[i].occ < 0 && counts[i] != -constraints[i].occ) || // se non ho il numero esatto di occorrenze
+                    (constraints[i].occ > 0 && counts[i] < constraints[i].occ)){ // oppure il numero minimo
                     root->chunk[0] = false;
                 }
             }
@@ -250,7 +249,7 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
                 counts[tempMap]++;
                 if ((guessedChars[i+startIndex-1] != '?' && root->chunk[i] != guessedChars[i+startIndex-1]) || // se il char è in una posizione indovinata e non è quello corretto
                     (constraints[tempMap].bannedInPos[i+startIndex-1] == true) || // se il char è bannato da quella posizione
-                    (constraints[tempMap].Occ != 0 && counts[tempMap] > constraints[tempMap].Occ)){ // se ho superato il numero di occorrenze esatto
+                    (constraints[tempMap].occ < 0 && counts[tempMap] > -constraints[tempMap].occ)){ // se ho superato il numero di occorrenze esatto
                     root->chunk[0] = false;
                 }
             }
@@ -283,8 +282,7 @@ void newGameReset (node_ptr root){
         guessedChars[i] = '?';
     for (i = 0; i < 64; i++){
         memset(constraints[i].bannedInPos, 0, k);
-        constraints[i].minOcc = 0;
-        constraints[i].Occ = 0;
+        constraints[i].occ = 0;
     }
 
     // imposta la parola di riferimento
