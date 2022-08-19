@@ -1,5 +1,5 @@
 // lunghezza parole max: 8, numero parole e turni max: 32
-// linea 239 migliorare!!
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -338,6 +338,12 @@ int main(){
 
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
+                if (exitBool){
+                    memset(counts, 0, 64);
+                    x = 0;
+                    validate_trie(root, 0, counts);
+                }
+
                 memset(temp, '\0', k+1);
                 print_trie(temp, 0, root);
             }
@@ -354,9 +360,6 @@ int main(){
                     else
                         exitBool = true;
                 }
-                memset(counts, 0, 64);
-                x = 0;
-                validate_trie(root, 0, counts);
             }
 
             // inizia una nuova partita
@@ -379,6 +382,7 @@ int main(){
                 memset(counts, 0, 64);
                 x = 0;
                 validate_trie(root, 0, counts);
+                exitBool = false;
                 printf("%d\n", x);
                 n--; // ho giocato un turno
                 if (n == 0) printf("ko\n"); // se non ho più turni a disposizione stampo ko
