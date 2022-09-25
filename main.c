@@ -1,5 +1,5 @@
-// lunghezza parole max: 8, numero parole e turni max: 32
-
+// cumlaude passed
+// lunghezza parole max: 8 bit, numero parole e turni max: 32 bit
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +8,10 @@
 
 #define MAXWORDLEN 256
 
+/*
+nodo del trie: down-child right-sibling binary trie/tree
+in chunk[0] si trova il bool di validità, il resto è il nodo del trie compresso.
+*/
 struct node{
     struct node* right;
     struct node* down;
@@ -15,9 +19,11 @@ struct node{
 };
 typedef struct node* node_ptr;
 
+// struttura che salva i vincoli sui 64 caratteri
 struct chars{
     bool* bannedInPos;
-    int8_t occ; // + se min, - se esatte
+    uint8_t minOcc;
+    uint8_t Occ;
 };
 
 uint8_t k; // lunghezza parole
@@ -25,17 +31,27 @@ uint32_t x; // numero parole valide
 uint32_t totalWords; // numero parole totali
 uint32_t n; // numero turni a disposizione
 struct chars constraints[64]; // tabella dei vincoli per ogni carattere
-char buffer[MAXWORDLEN];
-char *guessedChars, *riferimento;
+char buffer[MAXWORDLEN]; // usato per la lettura dell'input
+char *guessedChars; // stringa di vincoli per i caratteri indovinati
+char *riferimento; // parola di riferimento
 
+// tavola di riferimento per la "funzione" map
+uint8_t mapTable[123] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0,
+    0, 0, 0, 0, 0, 0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 0, 0, 0, 0, 37, 0,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+    57, 58, 59, 60, 61, 62, 63
+};
+
+// "funzione" map
 uint8_t map(char c){
-    if (c == '-') return (c - 45);
-    else if (c >= '0' && c <= '9') return (c - 47);
-    else if (c >= 'A' && c <= 'Z') return (c - 54);
-    else if (c == '_') return (c - 58);
-    else return (c - 59);
+    return mapTable[(int)c];
 }
 
+// legge una riga dell'input e la restituisce senza newline e con terminatore
 bool readline(){
     if (fgets(buffer, MAXWORDLEN, stdin)) {
         buffer[strcspn(buffer, "\r\n")] = '\0'; // pulisce il buffer dal newline
@@ -43,10 +59,12 @@ bool readline(){
     } else return false;
 }
 
+// wtf
 void cut_end(char* word, uint8_t end){
     for (;end < strlen(word); end++) word[end] = '\0';
 }
 
+// python-like slicing
 void slice(char *str, char *result, size_t start, size_t end){
     strncpy(result, str + start, end - start);
 }
@@ -54,8 +72,8 @@ void slice(char *str, char *result, size_t start, size_t end){
 // ritorna la lunghezza del pezzo iniziale che corrisponde, 0 se non corrisponde, -1 se corrisponde fino alla fine di trieChunk
 int8_t match_until(char* trieChunk, char* inputWord){
     int8_t num = 0;
-    while(trieChunk[num] != '\0'){
-        if (inputWord[num] != trieChunk[num]) return num;
+    for(;*trieChunk != '\0'; trieChunk++, inputWord++){
+        if (*inputWord != *trieChunk) return num;
         num++;
     } 
     return -1;
@@ -209,11 +227,11 @@ void play_round(char* r, char* p){
                 if (occs[tempMap] == 0) // potrei non averla mai trovata
                     for (j = 0; j < k; j++) constraints[tempMap].bannedInPos[j] = true; // la banno ovunque
                 else // o magari l'ho trovata in precedenza
-                    constraints[tempMap].occ = -occs[tempMap]; // allora adesso conosco il numero di occorrenze esatto!
+                    constraints[tempMap].Occ = occs[tempMap]; // allora adesso conosco il numero di occorrenze esatto!
             }
         }
     }
-    for (i=0; i<64; i++) if (occs[i] != 0 && constraints[i].occ >= 0 && occs[i] > constraints[i].occ) constraints[i].occ = occs[i];
+    for (i=0; i<64; i++) if (occs[i] > constraints[i].minOcc) constraints[i].minOcc = occs[i];
     output[k] = '\0';
     printf("%s\n", output);
 }
@@ -235,9 +253,12 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
                     root->chunk[0] = false;
                 }
             }
-            for (i=0; i<64 && root->chunk[0]; i++){
-                if ((constraints[i].occ < 0 && counts[i] != -constraints[i].occ) || // se non ho il numero esatto di occorrenze
-                    (constraints[i].occ > 0 && counts[i] < constraints[i].occ)){ // oppure il numero minimo
+            struct chars tempConst;
+            for (i=0; i<k + 1 && root->chunk[0]; i++){
+                tempMap = map(riferimento[i]);
+                tempConst = constraints[tempMap];
+                if ((tempConst.Occ != 0 && counts[tempMap] != tempConst.Occ) || // se non ho il numero esatto di occorrenze
+                    (tempConst.minOcc != 0 && counts[tempMap] < tempConst.minOcc)){ // oppure il numero minimo
                     root->chunk[0] = false;
                 }
             }
@@ -249,7 +270,7 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
                 counts[tempMap]++;
                 if ((guessedChars[i+startIndex-1] != '?' && root->chunk[i] != guessedChars[i+startIndex-1]) || // se il char è in una posizione indovinata e non è quello corretto
                     (constraints[tempMap].bannedInPos[i+startIndex-1] == true) || // se il char è bannato da quella posizione
-                    (constraints[tempMap].occ < 0 && counts[tempMap] > -constraints[tempMap].occ)){ // se ho superato il numero di occorrenze esatto
+                    (constraints[tempMap].Occ != 0 && counts[tempMap] > constraints[tempMap].Occ)){ // se ho superato il numero di occorrenze esatto
                     root->chunk[0] = false;
                 }
             }
@@ -262,6 +283,7 @@ void validate_trie(node_ptr root, uint8_t startIndex, uint8_t counts[]){
     }
 }
 
+// imposta tutti i bool di validità a true
 void revalidate_trie(node_ptr root){
     root->chunk[0] = true;
     if (root->down != NULL) revalidate_trie(root->down);
@@ -282,7 +304,8 @@ void newGameReset (node_ptr root){
         guessedChars[i] = '?';
     for (i = 0; i < 64; i++){
         memset(constraints[i].bannedInPos, 0, k);
-        constraints[i].occ = 0;
+        constraints[i].minOcc = 0;
+        constraints[i].Occ = 0;
     }
 
     // imposta la parola di riferimento
@@ -336,7 +359,7 @@ int main(){
 
             // stampa le parole ammissibili valide in ordine
             if (strcmp(buffer, "+stampa_filtrate") == 0){
-                if (exitBool){
+                if (exitBool){ // rivalida solo se è stato fatto un inserimento
                     memset(counts, 0, 64);
                     x = 0;
                     validate_trie(root, 0, counts);
@@ -356,7 +379,7 @@ int main(){
                         totalWords++;
                     }
                     else
-                        exitBool = true;
+                        exitBool = true; // esce dal ciclo e indica anche che il trie non è stato ancora validato
                 }
             }
 
@@ -377,10 +400,12 @@ int main(){
             if (is_in_trie(buffer, root)){
                 strcpy(temp, riferimento); // mette la parola di riferimento in temp
                 play_round(temp, buffer);
-                memset(counts, 0, 64);
-                x = 0;
-                validate_trie(root, 0, counts);
-                exitBool = false;
+                if (x != 1 || exitBool){
+                    memset(counts, 0, 64);
+                    x = 0;
+                    validate_trie(root, 0, counts);
+                    exitBool = false; // indica che il trie è stato validato
+                }
                 printf("%d\n", x);
                 n--; // ho giocato un turno
                 if (n == 0) printf("ko\n"); // se non ho più turni a disposizione stampo ko
